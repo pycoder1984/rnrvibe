@@ -1,0 +1,94 @@
+---
+title: "How to Evaluate AI-Generated Code Quality"
+date: "2026-03-18"
+description: "A practical framework for reviewing AI-generated code — what to check, common pitfalls, and how to build confidence in your vibecoded projects."
+tags: ["code-review", "quality", "best-practices"]
+readTime: "6 min read"
+---
+
+# How to Evaluate AI-Generated Code Quality
+
+AI can write code fast. But fast and correct aren't the same thing. Here's a practical framework for evaluating the code AI generates.
+
+## The Five-Point Review
+
+Every piece of AI-generated code should pass these five checks before you ship it:
+
+### 1. Does It Actually Work?
+
+This sounds obvious, but AI code often works for the example case and breaks on real input. Test with:
+
+- **Empty inputs** — what happens when fields are blank?
+- **Boundary values** — zero, negative numbers, very long strings
+- **Invalid data** — wrong types, malformed JSON, missing fields
+- **Concurrent access** — two users hitting the same endpoint
+
+### 2. Is It Secure?
+
+AI models don't think about attackers. Check for:
+
+- **SQL injection** — is user input parameterized or concatenated into queries?
+- **XSS** — is user content escaped before rendering?
+- **Auth/authz gaps** — can users access resources they shouldn't?
+- **Exposed secrets** — are API keys hardcoded? Are error messages too verbose?
+- **Rate limiting** — can someone abuse the endpoint with rapid requests?
+
+### 3. Is It Readable?
+
+Code is read far more than it's written. Look for:
+
+- **Clear variable names** — `userData` beats `d`, `isAuthenticated` beats `flag`
+- **Consistent style** — does it match the rest of your codebase?
+- **Appropriate comments** — explaining *why*, not *what*
+- **Reasonable function size** — if a function is 100+ lines, it probably needs splitting
+
+### 4. Is It Efficient?
+
+AI often generates the correct but naive solution:
+
+- **N+1 queries** — fetching related data in a loop instead of a join
+- **Unnecessary re-renders** — missing `useMemo`, `useCallback`, or proper keys
+- **Blocking operations** — synchronous file reads in request handlers
+- **Memory leaks** — event listeners without cleanup, growing arrays without limits
+
+### 5. Is It Maintainable?
+
+Think about the developer who reads this code in six months:
+
+- **No magic numbers** — use named constants
+- **Clear error handling** — specific catch blocks, helpful messages
+- **Proper types** — TypeScript interfaces, not `any`
+- **Reasonable dependencies** — does this need a library, or is 10 lines of code enough?
+
+## Red Flags in AI-Generated Code
+
+Watch for these patterns that suggest the AI didn't understand the requirements:
+
+- **Overly generic variable names** like `data`, `result`, `temp`, `obj`
+- **Comments that restate the code** — `// increment counter` above `counter++`
+- **Unused imports** — AI often adds imports it doesn't use
+- **Hardcoded values** that should be configurable
+- **Copy-paste patterns** that should be abstracted into functions
+- **Missing error handling** in async operations
+
+## Building a Review Habit
+
+The goal isn't to review every line with suspicion. It's to build efficient patterns:
+
+1. **Skim the structure first** — does the overall approach make sense?
+2. **Check the boundaries** — inputs, outputs, error paths
+3. **Read the logic** — is the core algorithm correct?
+4. **Test the edge cases** — what didn't the AI think of?
+
+Over time, you'll develop an intuition for which AI outputs need heavy review and which are reliable. That intuition is what separates productive vibecoding from reckless vibecoding.
+
+## Use Tools to Help
+
+You don't have to do this alone:
+
+- **Our [Vibe Checker](/tools/vibe-checker)** reviews code for bugs, security, and improvements
+- **Linters** (ESLint, Prettier) catch style and basic quality issues automatically
+- **Type checkers** (TypeScript strict mode) catch type errors before runtime
+- **Our [Accessibility Checker](/tools/accessibility-checker)** audits UI code for WCAG compliance
+
+The best workflow: generate with AI, review with tools, verify with your brain.

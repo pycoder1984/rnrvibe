@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getLogs, getStats, clearLogs } from "@/lib/request-log";
+
+function isLocal(req: NextRequest): boolean {
+  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "";
+  const host = req.headers.get("host") || "";
+  return (
+    ip === "127.0.0.1" ||
+    ip === "::1" ||
+    ip === "" ||
+    host.startsWith("localhost") ||
+    host.startsWith("127.0.0.1")
+  );
+}
+
+export async function GET(req: NextRequest) {
+  if (!isLocal(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
+  const offset = parseInt(searchParams.get("offset") || "0");
+
+  return NextResponse.json({
+    stats: getStats(),
+    logs: getLogs(limit, offset),
+  });
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!isLocal(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  clearLogs();
+  return NextResponse.json({ success: true });
+}

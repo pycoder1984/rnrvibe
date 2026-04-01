@@ -1,0 +1,286 @@
+---
+title: "Database Design with AI Assistance"
+date: "2026-03-14"
+description: "Learn how to design database schemas, write queries, and handle migrations using AI — from simple SQLite to production PostgreSQL."
+tags: ["database", "backend", "tutorial"]
+readTime: "10 min read"
+difficulty: "Intermediate"
+---
+
+# Database Design with AI Assistance
+
+Every app that stores data needs a database. AI is surprisingly good at designing schemas and writing queries — but you need to know the right questions to ask and the pitfalls to avoid.
+
+## Choosing a Database
+
+Before you start, pick the right database for your project:
+
+| Database | Best For | Vibecoding Friendly? |
+|----------|----------|---------------------|
+| **SQLite** | Prototypes, local apps, small projects | Very — no setup needed |
+| **PostgreSQL** | Production apps, complex queries | Yes — most AI models know it well |
+| **MySQL** | WordPress, legacy apps | Yes — widely supported |
+| **MongoDB** | Unstructured data, rapid prototyping | Moderate — schema design is tricky |
+| **Supabase** | Full-stack apps needing auth + storage | Very — great free tier |
+
+**For most vibecoded projects, start with SQLite** (via Prisma). It requires zero setup — just a file on your disk. You can always migrate to PostgreSQL later.
+
+## Designing Your Schema
+
+### The Prompt Pattern
+
+The best database design prompts follow this structure:
+
+```
+Design a database schema for [app description].
+
+The app needs to support:
+1. [Feature 1 with specific data needs]
+2. [Feature 2 with specific data needs]
+3. [Feature 3 with specific data needs]
+
+Requirements:
+- Use [Prisma/SQL/whatever ORM]
+- Include timestamps (createdAt, updatedAt) on all tables
+- Add proper indexes for common queries
+- Include foreign key constraints
+```
+
+### Example: E-Commerce Schema
+
+```
+Design a Prisma schema for a small e-commerce store.
+
+The app needs to support:
+1. Products with name, description, price, stock count, and category
+2. Users with email, password hash, and shipping address
+3. Orders that track which user bought which products, quantities,
+   and order status (pending, paid, shipped, delivered)
+4. Product reviews with a 1-5 rating and optional text
+
+Requirements:
+- Use Prisma with PostgreSQL
+- Include createdAt/updatedAt on all models
+- Add indexes on: product category, order status, user email
+- Prices should be stored as integers (cents) to avoid float issues
+```
+
+### Why Cents Instead of Dollars?
+
+This is a detail AI often gets wrong. Floating-point numbers like `19.99` can produce rounding errors in calculations:
+
+```javascript
+// Float math is broken
+0.1 + 0.2 // = 0.30000000000000004
+
+// Store prices as cents (integers)
+1999 + 299 // = 2298 (exactly $22.98)
+```
+
+Always specify integer storage for money in your prompts.
+
+## Common Schema Patterns
+
+### One-to-Many (User has many Posts)
+
+```prisma
+model User {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id @default(autoincrement())
+  title    String
+  content  String
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId Int
+}
+```
+
+### Many-to-Many (Posts have many Tags)
+
+```prisma
+model Post {
+  id   Int    @id @default(autoincrement())
+  title String
+  tags  Tag[]
+}
+
+model Tag {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  posts Post[]
+}
+```
+
+Prisma handles the join table automatically. If you're writing raw SQL, you need to create it yourself.
+
+### Self-Referencing (Comments with Replies)
+
+```prisma
+model Comment {
+  id       Int       @id @default(autoincrement())
+  text     String
+  parent   Comment?  @relation("Replies", fields: [parentId], references: [id])
+  parentId Int?
+  replies  Comment[] @relation("Replies")
+}
+```
+
+## Writing Queries
+
+### The Query Prompt Pattern
+
+```
+Write a Prisma query that:
+- [What data to fetch/modify]
+- [Any filters or conditions]
+- [What relations to include]
+- [How to sort and paginate]
+```
+
+### Example Queries
+
+**Paginated list with filters:**
+```
+Write a Prisma query to get products where:
+- Category is "electronics" or "accessories"
+- Price is between 1000 and 5000 (cents)
+- Stock is greater than 0
+- Include the category name
+- Sort by price ascending
+- Return page 2 with 20 items per page
+```
+
+**Aggregation:**
+```
+Write a Prisma query that returns:
+- Total number of orders per status
+- Average order value
+- Top 5 best-selling products by quantity
+Group by month for the last 6 months.
+```
+
+## Migrations
+
+When your schema changes, you need to migrate the database. Here's the safe workflow:
+
+### Adding a New Field
+
+```
+I need to add a "phone" field (optional string) to the User model.
+Generate the Prisma schema change and migration command.
+Make sure existing users aren't affected (field should be nullable).
+```
+
+### Renaming a Field
+
+This is where AI often generates dangerous migrations. **Never** let AI rename a column in production without review:
+
+```
+I want to rename "userName" to "displayName" in the User model.
+Generate a safe migration that:
+1. Adds the new column
+2. Copies data from old to new
+3. Drops the old column
+Make sure no data is lost.
+```
+
+### Deleting a Field
+
+```
+I want to remove the "legacyId" field from the Product model.
+Before generating the migration, confirm:
+- No code references this field
+- No other tables have foreign keys to it
+Then generate the migration.
+```
+
+## Common Database Mistakes in Vibecoded Projects
+
+### 1. No Indexes
+
+AI rarely adds indexes unless you ask. Without them, queries get slower as your data grows:
+
+```
+Add indexes to optimize these common queries:
+- Finding users by email
+- Filtering products by category
+- Sorting orders by date
+- Finding all posts by a user
+```
+
+### 2. N+1 Queries
+
+AI-generated code often fetches related data in loops:
+
+```javascript
+// BAD: N+1 — one query per post to get the author
+const posts = await prisma.post.findMany();
+for (const post of posts) {
+  const author = await prisma.user.findUnique({
+    where: { id: post.authorId }
+  });
+}
+
+// GOOD: Single query with include
+const posts = await prisma.post.findMany({
+  include: { author: true }
+});
+```
+
+Always ask the AI to use eager loading (`include` in Prisma, `JOIN` in SQL).
+
+### 3. No Soft Deletes
+
+AI defaults to hard deletes (`DELETE FROM`). For production data, consider soft deletes:
+
+```
+Instead of deleting records, add a "deletedAt" field (nullable datetime).
+When "deleting," set deletedAt to the current time.
+All queries should filter out records where deletedAt is not null.
+```
+
+### 4. Storing Passwords in Plain Text
+
+This is critical. AI sometimes generates user models with a `password` field instead of `passwordHash`. Always verify:
+
+- Passwords are hashed with bcrypt or argon2 before storage
+- The plain-text password is never saved
+- Login compares hashed values, not plain text
+
+## Testing Your Database
+
+Ask AI to generate seed data:
+
+```
+Create a Prisma seed script that generates:
+- 10 users with realistic names and emails
+- 50 products across 5 categories
+- 30 orders with random products and quantities
+- 20 reviews with random ratings
+
+Use faker.js for realistic data. Run with: npx prisma db seed
+```
+
+Seed data lets you test your queries against realistic data volumes instead of an empty database.
+
+## From SQLite to PostgreSQL
+
+When you're ready for production:
+
+1. Set up a PostgreSQL database (Railway, Supabase, or Neon all have free tiers)
+2. Update your Prisma schema: change `provider = "sqlite"` to `provider = "postgresql"`
+3. Update `DATABASE_URL` in your `.env` file
+4. Run `npx prisma migrate deploy`
+5. Seed your production database
+
+The query code stays exactly the same — Prisma handles the translation.
+
+## Next Steps
+
+- Build [API endpoints](/guides/api-development-with-ai) that use your database
+- Learn about [deployment](/guides/deploying-your-project) to get your app live
+- Use the [Code Explainer](/tools/code-explainer) to understand generated queries

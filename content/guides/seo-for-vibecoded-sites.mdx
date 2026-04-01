@@ -1,0 +1,278 @@
+---
+title: "SEO for Vibecoded Sites: Getting Found on Google"
+date: "2026-03-11"
+description: "A practical guide to search engine optimization for AI-built websites — meta tags, structured data, performance, and content strategy."
+tags: ["seo", "marketing", "nextjs", "beginner"]
+readTime: "8 min read"
+difficulty: "Beginner"
+---
+
+# SEO for Vibecoded Sites: Getting Found on Google
+
+You built a great site. Now people need to find it. SEO isn't magic — it's a checklist. Here's what to do.
+
+## The SEO Fundamentals
+
+### 1. Page Titles and Descriptions
+
+Every page needs a unique title and description:
+
+```typescript
+// app/tools/page.tsx (Next.js App Router)
+export const metadata = {
+  title: "Free AI Coding Tools — Your Site Name",
+  description: "24 free AI-powered tools for developers. Code review, bug fixing, test generation, and more. No sign-up required.",
+};
+```
+
+**Title rules:**
+- Under 60 characters (Google truncates longer titles)
+- Include your primary keyword
+- Put the keyword near the beginning
+- Include your brand name at the end
+
+**Description rules:**
+- Under 160 characters
+- Describe what the page offers
+- Include a call to action or value proposition
+- Don't stuff keywords — write for humans
+
+### 2. Heading Hierarchy
+
+Use headings in order: H1 > H2 > H3. Never skip levels.
+
+```html
+<h1>Free AI Coding Tools</h1>        <!-- One per page -->
+  <h2>Code Generation</h2>           <!-- Major sections -->
+    <h3>Component Generator</h3>     <!-- Sub-sections -->
+    <h3>API Endpoint Generator</h3>
+  <h2>Code Review</h2>
+    <h3>Vibe Checker</h3>
+```
+
+AI often generates multiple H1 tags or skips heading levels. Fix this during review.
+
+### 3. Semantic HTML
+
+Use the right HTML elements:
+
+```html
+<!-- BAD — divs for everything -->
+<div class="nav">...</div>
+<div class="article">...</div>
+<div class="footer">...</div>
+
+<!-- GOOD — semantic elements -->
+<nav>...</nav>
+<article>...</article>
+<footer>...</footer>
+```
+
+Search engines use semantic HTML to understand your content structure.
+
+## Technical SEO
+
+### Sitemap
+
+A sitemap tells search engines what pages exist on your site:
+
+```typescript
+// app/sitemap.ts
+import type { MetadataRoute } from "next";
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    { url: "https://yoursite.com", changeFrequency: "weekly", priority: 1 },
+    { url: "https://yoursite.com/tools", changeFrequency: "weekly", priority: 0.9 },
+    // ... all your pages
+  ];
+}
+```
+
+### Robots.txt
+
+Tell search engines what to crawl and what to skip:
+
+```typescript
+// app/robots.ts
+export default function robots() {
+  return {
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/api/", "/dashboard"],
+    },
+    sitemap: "https://yoursite.com/sitemap.xml",
+  };
+}
+```
+
+### Canonical URLs
+
+Prevent duplicate content issues:
+
+```typescript
+export const metadata = {
+  alternates: {
+    canonical: "https://yoursite.com/tools",
+  },
+};
+```
+
+### Open Graph Tags
+
+Control how your pages look when shared on social media:
+
+```typescript
+export const metadata = {
+  openGraph: {
+    title: "Free AI Coding Tools",
+    description: "24 free AI-powered tools for developers.",
+    type: "website",
+    images: ["/og-image.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free AI Coding Tools",
+    description: "24 free AI-powered tools for developers.",
+  },
+};
+```
+
+Use our [Meta Tag Generator](/projects/meta-tag-generator) to create these for any page.
+
+## Structured Data (JSON-LD)
+
+Structured data helps Google understand your content and show rich results:
+
+### For Articles/Blog Posts
+
+```typescript
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline: "Your Article Title",
+  description: "Article description",
+  datePublished: "2026-03-15",
+  author: {
+    "@type": "Organization",
+    name: "Your Site",
+  },
+};
+```
+
+### For Software Tools
+
+```typescript
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Code Review Tool",
+  applicationCategory: "DeveloperApplication",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+};
+```
+
+### For FAQ Pages
+
+```typescript
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Is it free?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes, completely free with no sign-up required.",
+      },
+    },
+  ],
+};
+```
+
+## Performance = SEO
+
+Google uses Core Web Vitals as a ranking signal. The key metrics:
+
+### LCP (Largest Contentful Paint) < 2.5s
+
+- Use Next.js Image component for optimized images
+- Preload your hero image or above-the-fold content
+- Minimize JavaScript that blocks rendering
+
+### CLS (Cumulative Layout Shift) < 0.1
+
+- Always set `width` and `height` on images
+- Don't insert content above existing content after load
+- Use font `display: swap` for web fonts
+
+### FID/INP < 200ms
+
+- Minimize JavaScript bundle size
+- Use code splitting for large components
+- Defer non-critical scripts
+
+## Content Strategy
+
+### Write for Humans, Optimize for Search
+
+1. **Research keywords** — what do people actually search for?
+2. **Create pages** that answer those searches
+3. **Use keywords naturally** in titles, headings, and body text
+4. **Don't keyword stuff** — Google penalizes this
+
+### Internal Linking
+
+Link between your own pages:
+
+- Blog posts should link to relevant tools
+- Tools should link to related guides
+- Guides should link to other guides and blog posts
+
+Internal links help search engines discover your content and understand relationships between pages.
+
+### Content Freshness
+
+Update existing content regularly:
+
+- Add new information
+- Update screenshots and examples
+- Fix broken links
+- Refresh dates on updated articles
+
+Google favors fresh, maintained content over stale pages.
+
+## The SEO Checklist
+
+Before launching any page:
+
+- [ ] Unique title (under 60 characters, includes keyword)
+- [ ] Meta description (under 160 characters)
+- [ ] Canonical URL set
+- [ ] Open Graph and Twitter meta tags
+- [ ] One H1 tag per page
+- [ ] Proper heading hierarchy (H1 > H2 > H3)
+- [ ] Images have alt text
+- [ ] Page is in the sitemap
+- [ ] Lighthouse performance score > 90
+- [ ] Page loads in under 3 seconds on mobile
+- [ ] Structured data (JSON-LD) where applicable
+- [ ] Internal links to/from related pages
+
+## Quick Wins
+
+If you want to improve SEO today:
+
+1. Add meta descriptions to every page missing one
+2. Add your site to [Google Search Console](https://search.google.com/search-console)
+3. Submit your sitemap
+4. Fix any mobile usability issues flagged by Search Console
+5. Add alt text to every image
+
+SEO isn't a one-time task — it's an ongoing practice. Build these habits into your vibecoding workflow and your sites will get the traffic they deserve.

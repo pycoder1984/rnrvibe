@@ -1,0 +1,99 @@
+---
+title: "Building Your Vibecoding Workflow: Tools, Habits, and Systems"
+date: "2026-03-16"
+description: "How to set up a complete vibecoding workflow — from prompt templates to project structure to review processes."
+tags: ["workflow", "productivity", "setup"]
+readTime: "5 min read"
+---
+
+# Building Your Vibecoding Workflow: Tools, Habits, and Systems
+
+Having great AI tools isn't enough. You need a workflow that makes you consistently productive. Here's how to build one.
+
+## The Three Phases
+
+Every vibecoding session has three phases. Getting efficient means optimizing each one.
+
+### Phase 1: Plan Before You Prompt
+
+The biggest mistake is jumping straight to prompting. Spend 5 minutes planning:
+
+- **What are you building?** Write one sentence describing the feature.
+- **What already exists?** What files, components, or patterns should the AI match?
+- **What are the constraints?** Framework, styling approach, accessibility needs.
+
+This planning turns vague prompts into precise ones, which turns mediocre output into usable code.
+
+### Phase 2: Generate and Iterate
+
+This is the core loop:
+
+1. Write a specific, context-rich prompt
+2. Review the output (don't just copy-paste)
+3. Identify what's wrong or missing
+4. Write a follow-up prompt that addresses the gaps
+5. Repeat until the code meets your standards
+
+**Pro tip:** Keep your iteration prompts short and specific. Instead of re-explaining the whole feature, say "The previous code is missing error handling for the case where the API returns a 404."
+
+### Phase 3: Polish and Verify
+
+AI gets you to 80%. This phase covers the remaining 20%:
+
+- Run the linter and fix warnings
+- Test on mobile viewports
+- Check keyboard navigation
+- Verify error states render correctly
+- Add loading states if they're missing
+- Run the type checker
+
+## The Toolkit
+
+Here's what a solid vibecoding setup looks like:
+
+**For generation:**
+- An AI assistant (Claude Code, Cursor, or Copilot)
+- Our [Project Starter](/tools/project-starter) for new projects
+- Our [Component Generator](/tools/component-generator) for UI pieces
+
+**For review:**
+- Our [Vibe Checker](/tools/vibe-checker) for code review
+- ESLint + Prettier for automatic style enforcement
+- TypeScript strict mode for type safety
+
+**For reference:**
+- Our [Prompt Library](/tools/prompt-library) for starting templates
+- Our [Git Helper](/tools/git-helper) for version control commands
+- Our guides section for deeper learning
+
+## Habits That Compound
+
+### Commit Often
+
+Vibecoding produces code fast. If you don't commit frequently, you lose the ability to roll back when something breaks. Commit after every working feature, no matter how small.
+
+### Save Your Best Prompts
+
+When a prompt produces great output, save it. Build a personal prompt library. The difference between a 5-minute task and a 30-minute task is often having the right prompt ready.
+
+### Read Before You Ship
+
+"It compiled" is not the same as "it works." Read the generated code before committing it. You'll catch bugs, improve your understanding, and build the judgment that makes vibecoding sustainable.
+
+### Take Breaks from AI
+
+Occasionally write code without AI assistance. This keeps your fundamental skills sharp and helps you appreciate what AI is actually doing for you.
+
+## The Anti-Patterns
+
+Avoid these workflow traps:
+
+- **Prompt-and-pray:** Sending vague prompts and hoping for the best
+- **Copy-paste coding:** Accepting AI output without reading it
+- **Over-prompting:** Trying to generate everything in one massive prompt
+- **Under-reviewing:** Shipping code you don't understand
+- **Tool hopping:** Switching between 5 different AI tools instead of mastering one
+
+## Start Today
+
+You don't need to overhaul your entire workflow at once. Pick one habit from this article and apply it to your next coding session. Small improvements compound into dramatic productivity gains.

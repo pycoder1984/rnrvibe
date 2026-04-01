@@ -1,0 +1,149 @@
+---
+title: "From Vibecoded Prototype to Production: A Shipping Checklist"
+date: "2026-03-08"
+description: "You've built something with AI. Now what? A step-by-step checklist to go from prototype to production-ready application."
+tags: ["deployment", "production", "checklist"]
+readTime: "6 min read"
+---
+
+# From Vibecoded Prototype to Production: A Shipping Checklist
+
+You've done the exciting part — you described your idea, the AI generated the code, and you have a working prototype. But there's a gap between "it works on my machine" and "it's ready for users."
+
+This checklist bridges that gap.
+
+## Phase 1: Code Review
+
+Before anything else, review what the AI wrote. Use our [Vibe Checker](/tools/vibe-checker) for automated scanning, but also check manually:
+
+### Security
+
+- [ ] **Input validation** — Every form field and API endpoint validates input
+- [ ] **SQL injection** — If using a database, all queries use parameterized statements
+- [ ] **XSS protection** — User-generated content is escaped before rendering
+- [ ] **Authentication** — Protected routes actually check auth status
+- [ ] **Environment variables** — No API keys, passwords, or secrets in the code
+- [ ] **HTTPS** — All external requests use HTTPS
+- [ ] **CORS** — API endpoints have appropriate CORS headers
+
+### Performance
+
+- [ ] **Images optimized** — Use WebP/AVIF, lazy loading, and proper sizing
+- [ ] **Bundle size** — No unnecessary dependencies imported
+- [ ] **Database queries** — No N+1 queries, proper indexing
+- [ ] **Caching** — Static assets have cache headers
+- [ ] **Loading states** — Users see feedback during async operations
+
+### Code Quality
+
+- [ ] **No dead code** — Remove commented-out blocks and unused imports
+- [ ] **Consistent naming** — Variables and functions follow a single convention
+- [ ] **Error handling** — Every async operation has a catch block
+- [ ] **TypeScript** — No `any` types unless absolutely necessary
+
+## Phase 2: Testing
+
+AI-generated code often works for the happy path but breaks on edge cases.
+
+### Manual Testing Checklist
+
+1. **Empty states** — What happens when there's no data?
+2. **Long content** — Paste a 10,000-character string in every text field
+3. **Rapid clicks** — Double-click every button and submit every form twice
+4. **Back button** — Navigate through the app using browser back/forward
+5. **Mobile** — Test on a real phone, not just browser dev tools
+6. **Slow network** — Use Chrome DevTools to throttle to 3G
+7. **Different browsers** — At minimum: Chrome, Firefox, Safari
+
+### Automated Tests (If You Have Them)
+
+Even a few basic tests are better than none:
+
+```
+Write 5 basic tests for this app:
+1. The home page renders without crashing
+2. The API returns a 200 status for valid requests
+3. The API returns a 400 status for invalid requests
+4. Form validation rejects empty required fields
+5. Navigation between pages works correctly
+```
+
+Ask the AI to write these tests — it's one of the things AI does best.
+
+## Phase 3: Accessibility
+
+Accessibility isn't optional. At minimum:
+
+- [ ] **Alt text** — Every meaningful image has descriptive alt text
+- [ ] **Keyboard navigation** — Tab through the entire app without a mouse
+- [ ] **Color contrast** — Text meets WCAG AA (4.5:1 for normal text, 3:1 for large)
+- [ ] **Focus indicators** — Interactive elements show visible focus rings
+- [ ] **Screen reader** — Test with VoiceOver (Mac) or NVDA (Windows)
+- [ ] **Form labels** — Every input has an associated label element
+
+## Phase 4: SEO & Metadata
+
+If people need to find your app through search:
+
+- [ ] **Title tags** — Every page has a unique, descriptive title
+- [ ] **Meta descriptions** — 150-160 characters describing each page
+- [ ] **Open Graph** — Social sharing images and descriptions
+- [ ] **Sitemap** — Generated and submitted to Google Search Console
+- [ ] **robots.txt** — Allowing search engine crawling
+- [ ] **Semantic HTML** — Using proper heading hierarchy (h1, h2, h3)
+
+## Phase 5: Deployment
+
+### Choose a Platform
+
+For most vibecoded projects, these work great:
+
+| Platform | Best For | Free Tier |
+|----------|----------|-----------|
+| Vercel | Next.js, React apps | Yes |
+| Netlify | Static sites, JAMstack | Yes |
+| Railway | Full-stack with database | Limited |
+| Fly.io | Docker containers, global | Limited |
+| Cloudflare Pages | Static sites, Workers | Yes |
+
+### Deployment Checklist
+
+- [ ] **Environment variables** — Set in the platform's dashboard, not in code
+- [ ] **Domain** — Custom domain configured with SSL
+- [ ] **Error monitoring** — Set up Sentry or similar to catch production errors
+- [ ] **Analytics** — Know how many people use your app
+- [ ] **Backup** — Database backups configured (if applicable)
+- [ ] **CI/CD** — Automatic deploys on git push
+
+## Phase 6: Launch
+
+### The Minimum Viable Launch
+
+You don't need a Product Hunt launch or a press release. Start small:
+
+1. **Share with 5 people** — Friends, colleagues, or online communities
+2. **Collect feedback** — What's confusing? What's missing? What breaks?
+3. **Fix the top 3 issues** — Don't try to address everything at once
+4. **Share more widely** — Post on Twitter, Reddit, Hacker News, or relevant communities
+
+### Post-Launch Monitoring
+
+For the first week after launch:
+
+- Check error monitoring daily
+- Watch analytics for unusual patterns
+- Respond to user feedback quickly
+- Keep a list of improvements for v2
+
+## The 80/20 Rule
+
+You don't need to check every box on every list. Focus on what matters most for your specific project:
+
+- **Public-facing app?** Security and accessibility are non-negotiable
+- **Internal tool?** Focus on functionality and error handling
+- **Portfolio project?** Code quality and performance matter most
+- **MVP testing an idea?** Ship fast, fix later (but still check security basics)
+
+The goal isn't perfection — it's shipping something real that works and doesn't break or leak data. Vibecoding gets you to a prototype fast. This checklist gets you from prototype to production.
+
+Ready to check your code? Our [Vibe Checker](/tools/vibe-checker) scans for the most common issues in vibecoded projects.

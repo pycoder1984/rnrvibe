@@ -1,0 +1,221 @@
+---
+title: "Testing Vibecoded Projects"
+date: "2026-03-11"
+description: "How to write tests for AI-generated code — from quick manual checks to automated test suites. No testing experience required."
+tags: ["testing", "quality", "tutorial"]
+readTime: "8 min read"
+difficulty: "Beginner"
+---
+
+# Testing Vibecoded Projects
+
+AI-generated code often works for the "happy path" — the scenario where everything goes right. But real users don't follow the happy path. They enter garbage data, click buttons twice, use the back button at weird times, and find edge cases you never considered.
+
+Testing catches these problems before your users do.
+
+## Why Vibecoded Code Needs Extra Testing
+
+AI code has specific failure patterns that make testing especially important:
+
+1. **Missing edge cases** — AI handles the obvious scenario but not empty inputs, null values, or boundary conditions
+2. **Hallucinated APIs** — The code calls methods that don't exist in your version of a library
+3. **Silent failures** — Errors are caught and swallowed without telling the user anything went wrong
+4. **Optimistic assumptions** — The code assumes the network always works, the database is always available, and users always provide valid data
+
+## Level 1: Manual Testing (Do This at Minimum)
+
+Even if you never write a single automated test, run through this checklist for every feature:
+
+### The 5-Minute Manual Test
+
+1. **Happy path** — Does it work when you use it exactly as intended?
+2. **Empty input** — What happens when you submit forms with nothing filled in?
+3. **Long input** — Paste a 10,000-character string in every text field
+4. **Special characters** — Try `<script>alert('xss')</script>` in text fields
+5. **Double submit** — Click the submit button twice quickly
+6. **Refresh** — Press F5 while the page is loading or after submitting
+7. **Back button** — Navigate forward, then press Back — does the state make sense?
+8. **Mobile** — Open on your phone. Does the layout work? Can you tap all buttons?
+9. **Slow network** — Open Chrome DevTools → Network → Throttle to "Slow 3G"
+10. **No network** — Turn off Wi-Fi and try to use the app
+
+This takes 5 minutes per feature and catches 80% of bugs.
+
+## Level 2: Ask AI to Find Bugs
+
+One of the best uses of AI is reviewing AI-generated code. Use this prompt:
+
+```
+Review this code and list every possible way it could fail
+or produce unexpected results. Consider:
+- Invalid or missing inputs
+- Network failures
+- Race conditions
+- Memory leaks
+- Security vulnerabilities
+- Accessibility issues
+
+Code:
+[paste your code]
+```
+
+The AI will often find bugs in its own code that it didn't catch the first time. Fix each issue, then ask it to review again.
+
+## Level 3: Automated Tests
+
+If your project is more than a prototype, automated tests save you from regression bugs — things that worked yesterday but break today.
+
+### Setting Up a Test Framework
+
+Ask AI to set up testing for you:
+
+```
+Add Vitest to my Next.js project. Create the config file
+and a sample test. Use the following structure:
+- __tests__/ folder next to the code being tested
+- .test.ts extension for test files
+- Include a setup file for common test utilities
+```
+
+### What to Test
+
+Focus on the code most likely to break:
+
+**1. Utility functions** — Pure functions with inputs and outputs
+
+```
+Write tests for this function:
+
+function formatPrice(cents: number): string {
+  return "$" + (cents / 100).toFixed(2);
+}
+
+Test cases:
+- Normal values: 1999 → "$19.99"
+- Zero: 0 → "$0.00"
+- Large values: 999999 → "$9999.99"
+- Negative values (refunds): -500 → "-$5.00"
+- Non-integer input: 19.5 → should handle gracefully
+```
+
+**2. API routes** — Request/response validation
+
+```
+Write tests for my POST /api/projects endpoint:
+
+Test cases:
+- Valid request returns 201 with project object
+- Missing "name" field returns 400
+- Name over 100 chars returns 400
+- Empty request body returns 400
+- Duplicate project name returns 409 (if applicable)
+- Unauthenticated request returns 401
+```
+
+**3. Form validation** — Client-side checks
+
+```
+Write tests for the signup form validation:
+
+Test cases:
+- Valid email and password passes validation
+- Empty email shows "Email is required"
+- Invalid email format shows "Invalid email"
+- Password under 8 chars shows "Password too short"
+- Passwords that don't match shows "Passwords don't match"
+```
+
+### The Test Prompt Pattern
+
+```
+Write tests for [component/function/route] using [Vitest/Jest].
+
+Test the following scenarios:
+1. [Happy path — normal usage]
+2. [Edge case — boundary values]
+3. [Error case — invalid inputs]
+4. [Edge case — empty/null/undefined]
+5. [Integration — with dependencies]
+
+Use descriptive test names that explain what's being tested.
+Mock [specific dependencies] if needed.
+```
+
+## Level 4: Testing React Components
+
+For UI components, test behavior rather than appearance:
+
+```
+Write tests for the TodoList component using Vitest and
+React Testing Library.
+
+Test:
+1. Renders an empty state when no todos exist
+2. Displays a list of todos when provided
+3. Adds a new todo when the form is submitted
+4. Marks a todo as complete when the checkbox is clicked
+5. Deletes a todo when the delete button is clicked
+6. Shows an error message when the API call fails
+
+Don't test CSS classes or styling — test user behavior.
+```
+
+### What NOT to Test
+
+- **CSS and styling** — Visual tests are fragile and break on every design change
+- **Third-party libraries** — Trust that React, Prisma, and Next.js work correctly
+- **Implementation details** — Test what the user sees, not internal state variables
+- **Generated code you'll replace** — If it's a prototype that will be rewritten, skip tests
+
+## Testing Checklist by Project Type
+
+### Personal/Portfolio Site
+- [ ] All links work (no 404s)
+- [ ] Contact form sends correctly
+- [ ] Mobile layout is usable
+- [ ] Images load
+
+### SaaS/Web App
+- [ ] Authentication flow (signup, login, logout, password reset)
+- [ ] All CRUD operations work
+- [ ] Unauthorized users can't access protected routes
+- [ ] Form validation catches bad input
+- [ ] API returns correct error codes
+
+### E-Commerce
+- [ ] Product pages display correct prices
+- [ ] Cart calculates totals correctly
+- [ ] Checkout flow completes without errors
+- [ ] Inventory updates after purchase
+- [ ] Payment integration works in test mode
+
+## Running Tests in CI/CD
+
+Once you have tests, run them automatically on every push:
+
+```
+Create a GitHub Actions workflow that:
+1. Runs on push to main and on pull requests
+2. Installs dependencies
+3. Runs the linter
+4. Runs all tests
+5. Fails the build if any test fails
+```
+
+This prevents broken code from reaching production.
+
+## The Minimum Testing Strategy
+
+If you do nothing else:
+
+1. **Manual test the 5-minute checklist** for every feature
+2. **Write 5 automated tests** for your most critical function (auth, payments, data processing)
+3. **Ask AI to review** every piece of generated code before shipping
+
+This takes less than 30 minutes per feature and prevents the most embarrassing bugs.
+
+## Next Steps
+
+- Use the [Vibe Checker](/tools/vibe-checker) for automated code review
+- Learn about [debugging AI code](/guides/debugging-ai-code) when tests reveal problems
+- Read about [shipping to production](/blog/shipping-your-first-project) once your tests pass

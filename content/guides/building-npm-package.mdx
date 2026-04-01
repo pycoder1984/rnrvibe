@@ -1,0 +1,204 @@
+---
+title: "Building and Publishing an NPM Package with AI"
+date: "2026-03-17"
+description: "A complete guide to creating, testing, and publishing your first NPM package using AI-assisted development."
+tags: ["npm", "open-source", "publishing", "intermediate"]
+readTime: "10 min read"
+difficulty: "Intermediate"
+---
+
+# Building and Publishing an NPM Package with AI
+
+Publishing an NPM package takes your vibecoding skills beyond web apps into the open-source ecosystem. Here's how to do it properly.
+
+## Why Publish a Package?
+
+- **Share reusable code** across your own projects
+- **Contribute to open source** and build your reputation
+- **Learn deeper fundamentals** — packages have stricter requirements than apps
+- **Help other developers** solve problems you've already solved
+
+## Step 1: Choose What to Build
+
+Good first packages are:
+- **Utility functions** you keep copying between projects
+- **React hooks** that solve a common problem
+- **CLI tools** that automate a repetitive task
+- **Wrappers** around APIs that simplify the interface
+
+Bad first packages:
+- Anything that already exists and is well-maintained
+- Extremely niche tools only you would use
+- Anything requiring complex build pipelines
+
+## Step 2: Set Up the Project
+
+```bash
+mkdir my-package && cd my-package
+npm init -y
+```
+
+Prompt the AI:
+
+> "Set up a TypeScript NPM package project with:
+> - TypeScript compilation to both ESM and CJS
+> - tsconfig.json configured for a library (not an app)
+> - package.json with proper main, module, types, and exports fields
+> - A src/ directory with an index.ts entry point
+> - Jest for testing
+> - A .gitignore and .npmignore"
+
+### Key package.json Fields
+
+```json
+{
+  "name": "my-package",
+  "version": "0.1.0",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "jest",
+    "prepublishOnly": "npm run build && npm test"
+  }
+}
+```
+
+**Install tsup** for zero-config TypeScript bundling:
+```bash
+npm install -D tsup typescript jest @types/jest ts-jest
+```
+
+## Step 3: Write Your Code
+
+Structure your source in `src/`:
+
+```
+src/
+  index.ts          # Public API (exports)
+  utils.ts          # Internal utilities
+  types.ts          # TypeScript types
+```
+
+### The Golden Rule
+
+Your `index.ts` should only export what users need:
+
+```typescript
+// src/index.ts
+export { formatDate } from "./format-date";
+export { parseDate } from "./parse-date";
+export type { DateFormatOptions } from "./types";
+```
+
+Keep internal helpers unexported. Every export is a public API commitment.
+
+## Step 4: Write Tests
+
+This is where AI shines. Prompt:
+
+> "Write comprehensive Jest tests for this function. Include: happy path, edge cases, error cases, and type checking. Use TypeScript."
+
+Then paste your function. Use our [Test Generator](/tools/test-generator) for this.
+
+### Test Structure
+
+```typescript
+describe("formatDate", () => {
+  it("formats a date with default options", () => {
+    expect(formatDate(new Date("2026-03-15"))).toBe("March 15, 2026");
+  });
+
+  it("handles custom format", () => {
+    expect(formatDate(new Date("2026-03-15"), { format: "short" })).toBe("3/15/26");
+  });
+
+  it("throws on invalid date", () => {
+    expect(() => formatDate(new Date("invalid"))).toThrow("Invalid date");
+  });
+});
+```
+
+## Step 5: Document It
+
+Create a README.md with:
+
+1. **What it does** — one paragraph
+2. **Installation** — `npm install my-package`
+3. **Quick start** — minimal working example
+4. **API reference** — every exported function with parameters and return types
+5. **Examples** — 2-3 real-world usage scenarios
+
+Use our [README Generator](/tools/readme-generator) to get a starting draft.
+
+## Step 6: Publish
+
+### First Time Setup
+
+```bash
+# Create an NPM account (if you don't have one)
+npm adduser
+
+# Login
+npm login
+```
+
+### Publish
+
+```bash
+# Dry run first — see what will be published
+npm pack --dry-run
+
+# Publish
+npm publish
+```
+
+### For Scoped Packages
+
+If your package name starts with `@yourname/`:
+```bash
+npm publish --access public
+```
+
+## Step 7: Maintain It
+
+Publishing is the beginning, not the end:
+
+- **Semantic versioning:** patch (1.0.1) for fixes, minor (1.1.0) for features, major (2.0.0) for breaking changes
+- **Changelog:** document what changed in each version
+- **Issues:** respond to bug reports within a week
+- **Dependencies:** keep them updated
+
+## Common AI Mistakes in Package Code
+
+1. **App-specific code** — AI generates code that assumes Next.js, React, or a browser environment. Packages should be environment-agnostic unless specifically designed for a platform.
+
+2. **Missing TypeScript exports** — the `types` field in package.json must point to generated `.d.ts` files.
+
+3. **Side effects on import** — packages shouldn't do anything when imported (no console.logs, no API calls, no DOM manipulation).
+
+4. **Heavy dependencies** — AI adds `lodash`, `moment`, or other large libraries. For a package, every dependency is your user's dependency. Minimize them.
+
+5. **No input validation** — packages are used by strangers. Validate inputs and throw helpful error messages.
+
+## Checklist Before Publishing
+
+- [ ] TypeScript compiles without errors
+- [ ] All tests pass
+- [ ] Package exports are correct (test with `npm pack` + install in a test project)
+- [ ] README includes installation, usage, and API docs
+- [ ] `files` field in package.json only includes `dist/`
+- [ ] No secrets, test fixtures, or unnecessary files in the package
+- [ ] License file is present
+- [ ] Version follows semver
+
+Your first package doesn't need to be revolutionary. It just needs to work, be well-documented, and solve a real problem. Ship it.

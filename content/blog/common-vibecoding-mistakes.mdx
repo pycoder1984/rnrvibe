@@ -1,0 +1,74 @@
+---
+title: "7 Common Vibecoding Mistakes (And How to Avoid Them)"
+date: "2026-03-10"
+description: "Most vibecoding fails come from vague prompts, skipping reviews, and blind trust in AI output. Here's how to fix that."
+tags: ["tips", "mistakes", "beginner"]
+readTime: "5 min read"
+---
+
+# 7 Common Vibecoding Mistakes (And How to Avoid Them)
+
+Vibecoding is powerful, but it's easy to fall into traps that waste time or produce fragile code. Here are the most common mistakes and how to sidestep them.
+
+## 1. Being Too Vague
+
+**The mistake:** "Make me a website."
+
+**The fix:** Be specific about what you want. Include the tech stack, layout, features, and style. The more detail you give, the better the output.
+
+```
+Build a Next.js landing page with a hero section,
+3-column feature grid, dark theme with purple accents,
+and a contact form that posts to /api/contact.
+```
+
+## 2. Never Reading the Output
+
+AI-generated code can look correct but contain subtle bugs — wrong API endpoints, missing error handling, or hardcoded values that should be variables. Always read through what you get before shipping it.
+
+## 3. One Giant Prompt
+
+Trying to build an entire app in a single prompt almost never works. Break your project into small, testable pieces:
+
+- First prompt: project structure and layout
+- Second prompt: navigation and routing
+- Third prompt: individual features one at a time
+
+## 4. Ignoring Security
+
+AI models don't always follow security best practices. Watch for:
+
+- SQL injection vulnerabilities
+- Missing input validation
+- Hardcoded secrets or API keys
+- Missing authentication checks
+
+Use tools like our [Vibe Checker](/tools/vibe-checker) to catch these issues automatically.
+
+## 5. Not Using Version Control
+
+When you're iterating fast with AI, it's easy to lose working code by overwriting it with a broken prompt result. Commit early and often:
+
+```bash
+git add . && git commit -m "working login flow"
+```
+
+Now you can experiment freely knowing you can always roll back.
+
+## 6. Copy-Pasting Without Context
+
+If you paste a code snippet into a new prompt without explaining what it does or how it fits into your project, the AI will make assumptions. Always provide context:
+
+```
+Here's my existing auth middleware (Express.js, JWT-based).
+I need to add role-based access control with "admin"
+and "user" roles. Keep the existing token validation logic.
+```
+
+## 7. Skipping Testing
+
+"It looks right" is not the same as "it works." Even a quick manual test catches obvious issues. For critical flows, ask the AI to generate tests alongside the feature code.
+
+## The Bottom Line
+
+Vibecoding isn't about removing all responsibility — it's about shifting your focus from syntax to architecture, intent, and quality control. Treat AI as a fast junior developer: capable, but needs direction and review.

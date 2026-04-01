@@ -1,0 +1,135 @@
+---
+title: "The Non-Technical Founder's Guide to Shipping an MVP with AI"
+date: "2026-03-14"
+description: "How to go from business idea to working product using vibecoding — no CS degree required. A practical guide for founders."
+tags: ["non-technical", "mvp", "founders", "beginner"]
+readTime: "7 min read"
+---
+
+# The Non-Technical Founder's Guide to Shipping an MVP with AI
+
+You have a business idea. You don't have a technical co-founder. A year ago, that was a dealbreaker. Today, it's a solvable problem.
+
+## What's Actually Possible
+
+Let's set realistic expectations. With AI-assisted development, a non-technical person can:
+
+- Build a **landing page** with email capture — in an afternoon
+- Build a **simple web app** (forms, dashboards, CRUD operations) — in a weekend
+- Build a **functional MVP** with user auth, database, and payments — in 1-2 weeks
+
+What you probably can't build (yet):
+- A real-time multiplayer game
+- A high-frequency trading platform
+- Anything requiring deep infrastructure expertise
+
+## Step 1: Choose Your Stack
+
+Don't overthink this. Use:
+
+- **Next.js** — full-stack framework with great documentation
+- **Tailwind CSS** — styling without writing CSS
+- **Vercel** — deploy with one click
+- **Supabase** — database + auth with zero configuration
+
+This stack handles 90% of MVP use cases and has the best AI support (meaning AI models generate better code for these tools because they're well-represented in training data).
+
+## Step 2: Describe Your MVP in One Paragraph
+
+Before touching any tool, write down:
+
+1. **Who** is this for?
+2. **What problem** does it solve?
+3. **What's the minimum** feature set to test the idea?
+
+Example: "A tool for freelance designers to create client invoices. They fill in project details and line items, and the app generates a professional PDF invoice they can send. Minimum: invoice form, PDF generation, saved invoice history."
+
+## Step 3: Break It Into Screens
+
+Most MVPs are 3-5 screens:
+
+1. Landing/marketing page
+2. Main feature screen
+3. Settings or profile
+4. Maybe: dashboard or history view
+
+Sketch these on paper. Seriously — a 5-minute sketch saves hours of back-and-forth with AI.
+
+## Step 4: Build Screen by Screen
+
+Use our [Project Starter](/tools/project-starter) to get your initial setup, then build one screen at a time:
+
+For each screen, prompt the AI with:
+- What the screen does
+- What data it shows or collects
+- What happens when the user takes action
+- How it should look (reference existing apps if helpful)
+
+### Example Prompt
+
+"Create a Next.js page for creating invoices. It should have:
+- A form with fields: client name, client email, project name, due date
+- A dynamic line items section where users can add rows with: description, quantity, rate
+- Auto-calculated totals for each line item and a grand total
+- A 'Generate Invoice' button that saves to the database
+- Clean, professional styling with Tailwind CSS
+- Mobile-responsive layout"
+
+## Step 5: Connect the Pieces
+
+Once individual screens work, connect them:
+
+- Add navigation between pages
+- Set up user authentication (use our [guide on auth](/guides/authentication-with-ai))
+- Connect to a database for persistent data
+- Add basic error handling
+
+## Step 6: Deploy and Test
+
+Deploying a Next.js app to Vercel is literally one command:
+
+```bash
+npx vercel
+```
+
+Share the URL with 5-10 potential users. Watch them use it. Take notes on what confuses them.
+
+## Common Mistakes
+
+### Building Too Much
+
+Your MVP should embarrass you slightly. If it doesn't, you've built too much. The goal is to test your hypothesis, not to build a complete product.
+
+### Ignoring Mobile
+
+Over half your users will visit on their phone. Test on mobile from day one.
+
+### Skipping Auth
+
+If users create data, they need accounts. Don't skip this for the MVP — losing data destroys trust.
+
+### Not Talking to Users
+
+The point of an MVP is learning, not launching. Ship fast, talk to users, iterate.
+
+## The Cost
+
+A realistic breakdown for a non-technical founder:
+
+- **Domain:** $12/year
+- **Vercel (hosting):** Free tier covers most MVPs
+- **Supabase:** Free tier includes auth + database
+- **AI tools:** $20-50/month for a good assistant
+- **Total:** Under $100 to launch
+
+Compare that to hiring a developer ($5,000-50,000 for an MVP) or a dev agency ($20,000-100,000). AI-assisted development has dramatically lowered the barrier.
+
+## What Comes Next
+
+Once your MVP validates the idea:
+
+1. **Hire a developer** to refactor and harden the codebase
+2. **Or keep building** with AI as your technical skills grow
+3. **Focus on users** — the code is the easy part; finding product-market fit is the hard part
+
+The best product you can build is the one that exists. Ship your MVP and learn from real users.

@@ -1,0 +1,57 @@
+---
+title: "The AI Code Review Checklist"
+date: "2026-03-14"
+description: "A practical checklist for reviewing AI-generated code before shipping — covering security, performance, correctness, and maintainability."
+tags: ["code-review", "security", "best-practices"]
+readTime: "5 min read"
+---
+
+# The AI Code Review Checklist
+
+AI-generated code compiles. It usually runs. But "it works" and "it's ready to ship" are very different things. Use this checklist every time you review AI output.
+
+## Security
+
+- [ ] **No hardcoded secrets** — API keys, passwords, and tokens should come from environment variables, not source code
+- [ ] **Input validation** — User inputs are sanitized before hitting the database or being rendered in HTML
+- [ ] **No SQL injection** — Parameterized queries, not string concatenation
+- [ ] **No XSS vectors** — User content is escaped before rendering; `dangerouslySetInnerHTML` is used sparingly
+- [ ] **Auth checks exist** — Protected routes actually check authentication and authorization
+- [ ] **CORS is configured** — Not set to `*` in production
+
+## Correctness
+
+- [ ] **Edge cases handled** — Empty arrays, null values, zero-length strings, negative numbers
+- [ ] **Error states covered** — Network failures, missing data, timeout scenarios
+- [ ] **Types are accurate** — TypeScript types match actual runtime data (AI loves to invent fields that don't exist)
+- [ ] **Logic matches intent** — The code does what you asked, not just something that looks similar
+- [ ] **No phantom imports** — Every imported package actually exists in `package.json`
+
+## Performance
+
+- [ ] **No N+1 queries** — Database calls aren't inside loops
+- [ ] **Reasonable data fetching** — Not loading entire tables when you need one row
+- [ ] **No memory leaks** — Event listeners and subscriptions are cleaned up
+- [ ] **Images are optimized** — Not serving 4MB PNGs for thumbnails
+- [ ] **Bundle size checked** — AI loves importing massive libraries for tiny features
+
+## Maintainability
+
+- [ ] **Readable variable names** — Not `x`, `temp`, `data2`
+- [ ] **No dead code** — Unused functions, commented-out blocks, and unreachable branches are removed
+- [ ] **Consistent patterns** — Matches the style of your existing codebase
+- [ ] **No over-engineering** — Simple problems have simple solutions, not abstract factory patterns
+
+## Quick Test
+
+Before merging any AI-generated code, answer these three questions:
+
+1. **Can I explain what every line does?** If not, use our [Code Explainer](/tools/code-explainer) to break it down.
+2. **What happens when things go wrong?** Simulate a network failure, invalid input, or missing dependency.
+3. **Would I approve this in a code review?** Apply the same standards you'd use for human-written code.
+
+## Automate What You Can
+
+Manual checklists work, but automation is better. Run our [Vibe Checker](/tools/vibe-checker) tool to automatically scan for common issues in AI-generated code. It catches security problems, bugs, and style issues in seconds.
+
+The goal isn't to distrust AI — it's to verify before you ship. The best vibecoding workflow generates fast and reviews carefully.

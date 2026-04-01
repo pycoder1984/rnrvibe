@@ -1,0 +1,102 @@
+---
+title: "Prompt Engineering for Code"
+date: "2026-02-28"
+description: "Learn how to write effective prompts that produce better code from AI assistants."
+tags: ["intermediate", "prompts", "tutorial"]
+readTime: "6 min read"
+difficulty: "Intermediate"
+---
+
+# Prompt Engineering for Code
+
+The quality of your vibecoding output depends heavily on how you communicate with the AI. This guide covers proven techniques for writing better prompts.
+
+## The Anatomy of a Good Prompt
+
+A great coding prompt has four parts:
+
+1. **Context** — What exists already, what framework you're using
+2. **Goal** — What you want to achieve
+3. **Constraints** — Requirements, limitations, or preferences
+4. **Format** — How you want the output structured
+
+### Example
+
+```
+Context: I have a Next.js app with Tailwind CSS and a
+PostgreSQL database using Prisma ORM.
+
+Goal: Create an API endpoint that returns a paginated
+list of blog posts.
+
+Constraints:
+- Use App Router API routes
+- Support page and limit query parameters
+- Return total count in the response
+- Handle errors gracefully
+
+Format: Give me the API route file and the Prisma query
+separately so I can review each.
+```
+
+## Technique 1: Be Specific About Technology
+
+Instead of: "Build a website"
+
+Say: "Build a static website using HTML, CSS, and vanilla JavaScript. No frameworks."
+
+Specifying your tech stack prevents the AI from making assumptions that don't match your project.
+
+## Technique 2: Provide Examples
+
+Show the AI what you want:
+
+```
+Create a function that formats dates like these examples:
+- "2026-03-07" -> "March 7, 2026"
+- "2026-01-15" -> "January 15, 2026"
+- "2025-12-25" -> "December 25, 2025"
+```
+
+Examples eliminate ambiguity better than descriptions.
+
+## Technique 3: Ask for Explanations
+
+Add "explain your choices" or "add comments explaining the logic" to your prompts. This helps you:
+
+- Learn from the generated code
+- Catch mistakes or questionable decisions
+- Build your own understanding
+
+## Technique 4: Constrain the Output
+
+Without constraints, AI tends to over-engineer. Be explicit:
+
+- "Keep it simple — no unnecessary abstractions"
+- "Use only standard library features, no external packages"
+- "This is a prototype, optimize for readability over performance"
+
+## Technique 5: Iterate with Context
+
+When refining code, reference what you already have:
+
+```
+The login function you wrote works, but I need these changes:
+1. Add rate limiting (max 5 attempts per minute)
+2. Log failed attempts to the console
+3. Return a more descriptive error message
+Keep everything else the same.
+```
+
+This prevents the AI from rewriting code that already works.
+
+## Common Mistakes
+
+- **Too vague**: "Make it better" — Better how? Be specific.
+- **Too much at once**: Asking for an entire app in one prompt leads to generic, shallow code.
+- **No context**: The AI doesn't know your project structure unless you tell it.
+- **Ignoring output**: Not reviewing generated code leads to bugs and security issues.
+
+## Practice Exercise
+
+Try this: Pick a simple feature you want to build and write three versions of the prompt — vague, moderate, and detailed. Compare the outputs. You'll see the difference specificity makes.

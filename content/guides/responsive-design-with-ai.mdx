@@ -1,0 +1,193 @@
+---
+title: "Responsive Design with AI: Building Mobile-First Layouts"
+date: "2026-03-26"
+description: "How to use AI to build layouts that work beautifully on every screen size — from mobile phones to ultra-wide monitors."
+tags: ["responsive", "css", "tailwind", "mobile", "beginner"]
+readTime: "8 min read"
+difficulty: "Beginner"
+---
+
+# Responsive Design with AI: Building Mobile-First Layouts
+
+AI generates desktop layouts well. Mobile layouts? Not so much. This guide teaches you how to prompt for responsive designs that work everywhere.
+
+## Why Mobile First?
+
+Over 60% of web traffic comes from mobile devices. If your site doesn't work on a phone, you've lost most of your audience before they see your content.
+
+"Mobile first" means you design for the smallest screen first, then add complexity for larger screens. This approach is easier than retrofitting a desktop design to work on mobile.
+
+## The Tailwind Breakpoint System
+
+Tailwind CSS uses a mobile-first breakpoint system. Unprefixed utilities apply to all screens, and prefixed utilities apply at that breakpoint and above:
+
+```
+(default)  → 0px and up (mobile)
+sm:        → 640px and up (large phones, small tablets)
+md:        → 768px and up (tablets)
+lg:        → 1024px and up (laptops)
+xl:        → 1280px and up (desktops)
+2xl:       → 1536px and up (large desktops)
+```
+
+### Example
+
+```html
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+```
+
+This means: 1 column on mobile, 2 columns on tablets, 3 columns on laptops and up.
+
+## Prompting for Responsive Layouts
+
+### The Wrong Way
+
+> "Create a dashboard with a sidebar and main content area."
+
+This gives you a desktop layout that breaks on mobile.
+
+### The Right Way
+
+> "Create a dashboard layout. On mobile: full-width content with a hamburger menu that toggles a slide-out sidebar. On tablet (md): sidebar collapsed to icons only (64px width) with main content beside it. On desktop (lg): full sidebar (256px) with main content. Use Tailwind responsive prefixes."
+
+### Key Phrases to Include
+
+Always add these to your UI prompts:
+
+- "Mobile-first layout"
+- "Use Tailwind responsive breakpoints"
+- "Show me how it looks at each breakpoint"
+- "Include a mobile navigation pattern (hamburger menu / bottom tabs)"
+
+## Common Responsive Patterns
+
+### 1. Stack to Grid
+
+The most common pattern: items stack vertically on mobile, flow into a grid on larger screens.
+
+```html
+<div class="flex flex-col md:flex-row gap-6">
+  <div class="w-full md:w-1/3">Sidebar</div>
+  <div class="w-full md:w-2/3">Main content</div>
+</div>
+```
+
+### 2. Hide and Show
+
+Show different content or components at different breakpoints:
+
+```html
+<!-- Mobile: bottom tab bar -->
+<nav class="fixed bottom-0 inset-x-0 md:hidden">...</nav>
+
+<!-- Desktop: sidebar navigation -->
+<nav class="hidden md:block w-64">...</nav>
+```
+
+### 3. Responsive Typography
+
+Text should be smaller on mobile:
+
+```html
+<h1 class="text-2xl sm:text-3xl lg:text-5xl font-bold">
+  Welcome
+</h1>
+```
+
+### 4. Responsive Spacing
+
+Padding and margins should breathe on larger screens:
+
+```html
+<section class="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+  ...
+</section>
+```
+
+### 5. Responsive Images
+
+Images should fill their container and not overflow:
+
+```html
+<img
+  src="/hero.jpg"
+  alt="Hero"
+  class="w-full h-48 sm:h-64 lg:h-96 object-cover rounded-xl"
+/>
+```
+
+## Testing Your Responsive Design
+
+### Browser DevTools
+
+1. Open Chrome DevTools (F12)
+2. Click the device toggle icon (or Ctrl+Shift+M)
+3. Test at these widths: **375px** (iPhone), **768px** (iPad), **1024px** (laptop), **1440px** (desktop)
+
+### What to Check at Each Breakpoint
+
+- [ ] All text is readable (no text too small, no overflow)
+- [ ] No horizontal scrollbar
+- [ ] Touch targets are at least 44x44px on mobile
+- [ ] Images scale properly (not distorted, not overflowing)
+- [ ] Navigation is accessible (hamburger menu works, links are tappable)
+- [ ] Forms are usable (inputs are full-width on mobile)
+- [ ] Tables scroll horizontally or convert to cards on mobile
+
+## Common AI Mistakes
+
+### 1. Fixed Widths
+
+AI loves `w-[500px]`. This breaks on any screen smaller than 500px. Use relative widths:
+
+```html
+<!-- Bad -->
+<div class="w-[500px]">...</div>
+
+<!-- Good -->
+<div class="w-full max-w-lg mx-auto">...</div>
+```
+
+### 2. Desktop-Only Layouts
+
+AI generates a perfect desktop grid, then ignores mobile. Always check that the default (unprefixed) styles work at 375px.
+
+### 3. Tiny Touch Targets
+
+Desktop can get away with small buttons. Mobile can't. Minimum 44px for anything tappable:
+
+```html
+<button class="px-3 py-1.5 sm:px-3 sm:py-1.5 min-h-[44px] sm:min-h-0">
+  Click me
+</button>
+```
+
+### 4. Hidden Overflow
+
+Content that fits on desktop might overflow on mobile. Always add:
+
+```html
+<div class="overflow-x-auto">
+  <table>...</table>
+</div>
+```
+
+## Quick Reference: Responsive Cheat Sheet
+
+| Pattern | Mobile | Desktop |
+|---------|--------|---------|
+| Navigation | Hamburger / bottom tabs | Sidebar / top bar |
+| Grid | 1 column | 2-4 columns |
+| Typography | text-2xl | text-4xl+ |
+| Padding | px-4 py-8 | px-8 py-16 |
+| Cards | Full width, stacked | Grid, side by side |
+| Tables | Horizontal scroll | Full display |
+| Images | Full width | Constrained width |
+
+## Next Steps
+
+1. Use our [Component Generator](/tools/component-generator) — always include "mobile-first responsive" in your prompt
+2. Use our [CSS to Tailwind Converter](/tools/css-to-tailwind) if you have existing CSS to convert
+3. Test every page at 375px width before shipping
+
+Responsive design isn't optional — it's the default expectation. With the right prompts, AI can generate responsive layouts from the start.

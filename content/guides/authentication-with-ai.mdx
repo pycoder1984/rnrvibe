@@ -1,0 +1,174 @@
+---
+title: "Authentication with AI: Adding Login to Your Vibecoded App"
+date: "2026-03-23"
+description: "A step-by-step guide to adding user authentication to your Next.js app using AI-assisted development — covering NextAuth, session management, and protected routes."
+tags: ["auth", "nextauth", "security", "intermediate"]
+readTime: "10 min read"
+difficulty: "Intermediate"
+---
+
+# Authentication with AI: Adding Login to Your Vibecoded App
+
+Authentication is the feature every real app needs and every beginner dreads. This guide walks you through adding login to a Next.js app with AI assistance — safely.
+
+## Why Auth Matters
+
+Without authentication, every user sees the same thing and no data is personal. The moment you want:
+- User-specific data (dashboards, profiles, saved items)
+- Access control (admin vs. regular users)
+- Personalization (settings, preferences)
+
+...you need auth.
+
+## Choosing an Approach
+
+For Next.js apps, your main options are:
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **NextAuth.js** | Free, flexible, many providers | More setup |
+| **Supabase Auth** | Easy, includes database | Vendor lock-in |
+| **Clerk** | Beautiful UI components | Paid after free tier |
+| **Custom JWT** | Full control | Security risk if done wrong |
+
+**Our recommendation:** Start with **NextAuth.js** (now called Auth.js). It's free, well-documented, and AI models generate good code for it.
+
+## Step 1: Install Dependencies
+
+```bash
+npm install next-auth
+```
+
+## Step 2: Prompt for the Auth Config
+
+Here's a prompt that generates a solid starting point:
+
+> "Create a NextAuth.js configuration for a Next.js app router application. Include:
+> - GitHub and Google OAuth providers
+> - A credentials provider with email/password
+> - JWT session strategy
+> - TypeScript types for the session
+> - The auth config file at lib/auth.ts
+> - The route handler at app/api/auth/[...nextauth]/route.ts"
+
+## Step 3: Review the Generated Code
+
+AI will generate the auth config, but you MUST check:
+
+### Environment Variables
+Make sure the config reads from environment variables, not hardcoded values:
+
+```typescript
+// GOOD
+clientId: process.env.GITHUB_ID!,
+clientSecret: process.env.GITHUB_SECRET!,
+
+// BAD — never commit secrets
+clientId: "abc123",
+clientSecret: "secret456",
+```
+
+### Session Handling
+Verify the session callback includes the data you need:
+
+```typescript
+callbacks: {
+  session: ({ session, token }) => ({
+    ...session,
+    user: {
+      ...session.user,
+      id: token.sub,
+    },
+  }),
+},
+```
+
+### Password Hashing
+If using credentials auth, ensure passwords are hashed:
+
+```typescript
+import bcrypt from "bcryptjs";
+
+// When creating a user
+const hashedPassword = await bcrypt.hash(password, 12);
+
+// When verifying
+const isValid = await bcrypt.compare(password, user.hashedPassword);
+```
+
+**Never store plain-text passwords.** If the AI generates code that stores passwords without hashing, fix it immediately.
+
+## Step 4: Protect Your Routes
+
+### Server Components
+```typescript
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export default async function DashboardPage() {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  return <div>Welcome, {session.user?.name}</div>;
+}
+```
+
+### API Routes
+```typescript
+import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  // ... handle authenticated request
+}
+```
+
+### Middleware (Protect Multiple Routes)
+```typescript
+export { auth as middleware } from "@/lib/auth";
+
+export const config = {
+  matcher: ["/dashboard/:path*", "/settings/:path*"],
+};
+```
+
+## Step 5: Build the Login UI
+
+Prompt the AI for a login page:
+
+> "Create a login page with email/password form and OAuth buttons for GitHub and Google. Use the signIn function from next-auth/react. Include error handling for invalid credentials. Dark theme with Tailwind CSS."
+
+## Security Checklist
+
+Before shipping auth to production:
+
+- [ ] Environment variables are set (not hardcoded)
+- [ ] Passwords are hashed with bcrypt (12+ rounds)
+- [ ] CSRF protection is enabled (NextAuth does this by default)
+- [ ] Session expiry is configured (don't use infinite sessions)
+- [ ] OAuth redirect URLs are whitelisted
+- [ ] Error messages don't reveal whether an email exists
+- [ ] Rate limiting is in place on the login endpoint
+- [ ] HTTPS is enforced in production
+
+## Common AI Mistakes to Watch For
+
+1. **Hardcoded secrets** — AI sometimes puts example API keys in the code
+2. **Missing password hashing** — credentials providers without bcrypt
+3. **Overly permissive callbacks** — session callbacks that expose internal IDs
+4. **No error handling** — login forms that show raw error objects
+5. **Missing CSRF tokens** — custom implementations that skip CSRF protection
+
+## Next Steps
+
+Once auth is working:
+- Add **role-based access** (admin, user, guest)
+- Set up **email verification** for credentials accounts
+- Add **password reset** flow
+- Consider **two-factor authentication** for sensitive apps
+
+Authentication is one of the most security-critical features in any app. Use AI to generate the boilerplate, but always review the security aspects manually.

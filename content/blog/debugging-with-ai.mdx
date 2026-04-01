@@ -1,0 +1,103 @@
+---
+title: "How to Debug Faster with AI: A Practical Guide"
+date: "2026-03-25"
+description: "Stop staring at error messages — learn how to use AI to diagnose and fix bugs in minutes instead of hours."
+tags: ["debugging", "productivity", "tips"]
+readTime: "5 min read"
+---
+
+# How to Debug Faster with AI: A Practical Guide
+
+Debugging is where most development time goes. AI won't eliminate bugs, but it can dramatically reduce the time you spend finding and fixing them. Here's how.
+
+## The AI Debugging Workflow
+
+### Step 1: Capture Everything
+
+Before you prompt an AI, gather:
+
+- **The error message** — full stack trace, not just the first line
+- **The code that triggers it** — the specific function or component
+- **What you expected** vs. **what actually happened**
+- **What you already tried** — saves time on suggestions you've ruled out
+
+### Step 2: Write a Good Bug Report Prompt
+
+Bad: "My code is broken, fix it."
+
+Good:
+
+> "This React component throws 'Cannot read property map of undefined' on line 23 when the page first loads. The `users` state should be populated from an API call in useEffect, but it seems to render before the data arrives. Here's the component: [paste code]. Here's the API response format: [paste example]."
+
+The more context you give, the more accurate the diagnosis.
+
+### Step 3: Verify Before Applying
+
+AI will suggest a fix. Before you paste it in:
+
+1. **Does the explanation make sense?** If you don't understand why the fix works, ask for clarification.
+2. **Does it fix the root cause?** Or does it just suppress the symptom? Wrapping everything in `try/catch` isn't debugging — it's hiding.
+3. **Could it break something else?** A fix in one place can cause issues elsewhere.
+
+## The Five Most Common Bugs AI Finds Instantly
+
+### 1. Async/Await Mistakes
+
+```javascript
+// Bug: forgot await
+const data = fetch('/api/users');
+console.log(data.length); // undefined — data is a Promise
+
+// Fix
+const response = await fetch('/api/users');
+const data = await response.json();
+```
+
+AI spots missing `await` keywords faster than you can scan the code.
+
+### 2. Off-by-One Errors
+
+Array indexing, loop boundaries, pagination math — these are tedious to debug manually but obvious to AI when you show the input and expected output.
+
+### 3. Null/Undefined Access
+
+The classic "Cannot read property X of undefined." Paste the code and the error, and AI will trace the chain to find where the null value originates.
+
+### 4. State Timing Issues
+
+React state that's stale inside a closure, useEffect dependencies that are wrong, state updates that don't trigger re-renders — AI understands React's lifecycle well enough to spot these.
+
+### 5. Type Mismatches
+
+Passing a string where a number is expected, sending the wrong shape to an API, missing required fields — TypeScript catches many of these, but AI catches the ones TypeScript misses.
+
+## Tools for the Job
+
+**For quick fixes:** Use our [Bug Fixer](/tools/bug-fixer) — paste the code and error message, get a diagnosis and fix.
+
+**For code review:** Use our [Vibe Checker](/tools/vibe-checker) — it catches bugs before they become error messages.
+
+**For understanding code:** Use our [Code Explainer](/tools/code-explainer) — when you can't debug because you don't understand what the code does.
+
+## When AI Can't Help
+
+AI struggles with:
+
+- **Environment-specific issues** — "works on my machine" problems related to OS, Node version, or configuration
+- **Race conditions** — timing-dependent bugs that don't reproduce consistently
+- **Performance bugs** — "it's slow" requires profiling, not code reading
+- **Business logic errors** — AI doesn't know your requirements, so it can't tell you the logic is wrong
+
+For these, you need traditional debugging tools: browser DevTools, console.log (no shame), debugger breakpoints, and sometimes just taking a walk.
+
+## The Debugging Mindset
+
+The best debuggers — human or AI-assisted — follow the same pattern:
+
+1. **Reproduce** the bug reliably
+2. **Isolate** the smallest piece of code that triggers it
+3. **Understand** what the code is actually doing (vs. what you think it's doing)
+4. **Fix** the root cause, not the symptom
+5. **Verify** the fix doesn't break anything else
+
+AI accelerates steps 2-4 dramatically. But step 1 is still on you, and step 5 requires testing. The combination of human discipline and AI speed is what makes debugging 10x faster.

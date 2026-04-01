@@ -1,0 +1,173 @@
+---
+title: "Performance Optimization for AI-Generated Code"
+date: "2026-03-19"
+description: "How to identify and fix performance problems in vibecoded apps — from React re-renders to bundle size to API latency."
+tags: ["performance", "react", "optimization", "intermediate"]
+readTime: "9 min read"
+difficulty: "Intermediate"
+---
+
+# Performance Optimization for AI-Generated Code
+
+AI-generated code works. But "works" and "works fast" are different things. Here's how to find and fix the performance problems that AI introduces.
+
+## The Common Performance Pitfalls
+
+### 1. Unnecessary Re-renders
+
+This is the #1 performance issue in AI-generated React code. AI doesn't think about render cycles.
+
+**The problem:**
+```typescript
+// AI generates this — a new object on every render
+function UserList({ users }) {
+  const sortedUsers = users.sort((a, b) => a.name.localeCompare(b.name));
+  // This creates a new reference every render, causing child re-renders
+  return <List items={sortedUsers} />;
+}
+```
+
+**The fix:**
+```typescript
+function UserList({ users }) {
+  const sortedUsers = useMemo(
+    () => [...users].sort((a, b) => a.name.localeCompare(b.name)),
+    [users]
+  );
+  return <List items={sortedUsers} />;
+}
+```
+
+**When to use useMemo:**
+- Expensive computations (sorting, filtering large arrays)
+- Object/array references passed as props to memoized children
+- Values used in dependency arrays of other hooks
+
+**When NOT to use useMemo:**
+- Simple string concatenation or arithmetic
+- Primitives (numbers, strings, booleans) — they compare by value anyway
+
+### 2. Bundle Size Bloat
+
+AI loves importing full libraries when you need one function:
+
+```typescript
+// AI generates this — imports ALL of lodash (70KB+)
+import _ from "lodash";
+const sorted = _.sortBy(users, "name");
+
+// Better — import just what you need (4KB)
+import sortBy from "lodash/sortBy";
+
+// Best — write it yourself (0KB)
+const sorted = [...users].sort((a, b) => a.name.localeCompare(b.name));
+```
+
+**Check your bundle size:**
+```bash
+npx next build
+# Look for "First Load JS" in the output
+# Anything over 100KB per page should be investigated
+```
+
+### 3. Missing Code Splitting
+
+AI generates everything in one file. Real apps should split:
+
+```typescript
+// AI generates this — loads the chart library even if user never opens the tab
+import { BarChart } from "recharts";
+
+// Better — load it only when needed
+import dynamic from "next/dynamic";
+const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), {
+  loading: () => <div className="h-64 bg-neutral-800 animate-pulse rounded-xl" />,
+});
+```
+
+Use `dynamic` imports for:
+- Charts and visualization libraries
+- Rich text editors
+- Code editors
+- Maps
+- Any component only visible after user interaction
+
+### 4. N+1 API Calls
+
+AI-generated code often fetches data in loops:
+
+```typescript
+// BAD — N+1 queries
+const users = await db.query("SELECT * FROM users");
+for (const user of users) {
+  user.posts = await db.query("SELECT * FROM posts WHERE user_id = ?", [user.id]);
+}
+
+// GOOD — single query with join
+const users = await db.query(`
+  SELECT u.*, json_agg(p.*) as posts
+  FROM users u
+  LEFT JOIN posts p ON p.user_id = u.id
+  GROUP BY u.id
+`);
+```
+
+### 5. Unoptimized Images
+
+AI generates `<img>` tags. Next.js has a purpose-built Image component:
+
+```typescript
+// AI generates
+<img src="/hero.jpg" alt="Hero" />
+
+// Better
+import Image from "next/image";
+<Image src="/hero.jpg" alt="Hero" width={1200} height={600} priority />
+```
+
+The Next.js Image component automatically:
+- Serves WebP/AVIF formats
+- Lazy loads images below the fold
+- Prevents layout shift with width/height
+- Serves responsive sizes
+
+## Measuring Performance
+
+### Core Web Vitals
+
+The metrics that matter:
+
+- **LCP (Largest Contentful Paint):** < 2.5s — how fast the main content loads
+- **FID (First Input Delay):** < 100ms — how fast the page responds to interaction
+- **CLS (Cumulative Layout Shift):** < 0.1 — how much the layout jumps around
+
+### Tools
+
+- **Lighthouse** (built into Chrome DevTools) — run it on every page
+- **React DevTools Profiler** — shows which components re-render and why
+- **next build output** — shows bundle sizes per page
+
+## Quick Wins
+
+If you want to improve performance right now:
+
+1. **Add `loading="lazy"` to images below the fold**
+2. **Add `priority` to your hero image / LCP element**
+3. **Move client-side data fetching to server components** where possible
+4. **Replace `useEffect` + `fetch` with server-side data fetching** in Next.js
+5. **Add `Suspense` boundaries** around slow-loading components
+
+## The Performance Checklist
+
+Before deploying, check:
+
+- [ ] Lighthouse score > 90 on mobile
+- [ ] First Load JS < 100KB per page
+- [ ] No unnecessary `"use client"` directives
+- [ ] Images use Next.js Image component
+- [ ] Heavy libraries are dynamically imported
+- [ ] API calls are batched (no N+1)
+- [ ] Lists have proper `key` props
+- [ ] Expensive computations are memoized
+
+AI can generate fast code — but only if you prompt for it and verify the results.

@@ -1,0 +1,133 @@
+---
+title: "Building a Full-Stack App with Vibecoding"
+date: "2026-03-05"
+description: "A complete walkthrough of vibecoding a task manager app from scratch — frontend, backend, database, and deployment."
+tags: ["full-stack", "project", "tutorial"]
+readTime: "12 min read"
+difficulty: "Intermediate"
+---
+
+# Building a Full-Stack App with Vibecoding
+
+In this guide, we'll vibecode a complete task manager application. You'll learn how to break a real project into AI-friendly prompts and assemble the pieces into a working app.
+
+## What We're Building
+
+A task manager with:
+- User authentication (email/password)
+- Create, edit, delete, and complete tasks
+- Due dates and priority levels
+- Responsive dark-themed UI
+
+**Tech stack:** Next.js, TypeScript, Tailwind CSS, SQLite (via Prisma)
+
+## Phase 1: Project Setup
+
+Start with a clear setup prompt:
+
+```
+Create a Next.js 14 project with TypeScript, Tailwind CSS,
+and Prisma ORM with SQLite. Set up the folder structure with:
+- app/ directory with layout.tsx and page.tsx
+- components/ for reusable UI
+- lib/ for database utilities
+- prisma/ for schema
+
+Use a dark theme with neutral-950 background and purple accents.
+```
+
+### Why This Works
+
+Notice how the prompt specifies exact technologies, folder structure, and even the color scheme. Vague prompts like "set up a project" give you generic boilerplate.
+
+## Phase 2: Database Schema
+
+```
+Create a Prisma schema with two models:
+
+User:
+- id (auto-increment)
+- email (unique)
+- passwordHash (string)
+- createdAt (datetime)
+
+Task:
+- id (auto-increment)
+- title (string, max 200 chars)
+- description (optional text)
+- priority (enum: LOW, MEDIUM, HIGH)
+- dueDate (optional datetime)
+- completed (boolean, default false)
+- createdAt (datetime)
+- userId (relation to User)
+
+Generate the migration and Prisma client.
+```
+
+## Phase 3: Authentication
+
+```
+Build email/password authentication using Next.js server actions:
+
+1. Sign-up page at /signup with email, password, confirm password
+2. Login page at /login with email and password
+3. Use bcrypt for password hashing
+4. Use iron-session for cookie-based sessions
+5. Create a middleware that redirects unauthenticated users to /login
+6. Add a getCurrentUser() helper that reads the session
+
+Style with Tailwind, dark theme, centered card layout.
+```
+
+### Important: Review the Auth Code
+
+Authentication is security-critical. After generating this code:
+
+- Verify passwords are hashed with bcrypt (not stored in plain text)
+- Check that sessions are HTTP-only and secure
+- Ensure the middleware actually blocks unauthorized access
+- Test with wrong passwords and expired sessions
+
+## Phase 4: Task CRUD
+
+Build one feature at a time. Don't try to generate all CRUD operations in a single prompt.
+
+**Create:**
+```
+Add a "New Task" form to the dashboard. Fields: title (required),
+description (optional), priority (dropdown: Low/Medium/High),
+due date (date picker). Use a server action to insert into the
+database. Show a success toast and redirect to the task list.
+```
+
+**Read/List:**
+```
+Build the main dashboard at /dashboard showing all tasks for
+the logged-in user. Display as cards in a grid. Show title,
+priority badge (color-coded), due date, and a checkbox to
+mark complete. Sort by: incomplete first, then by due date.
+Add a filter bar for priority levels.
+```
+
+**Update and Delete** follow the same pattern — one prompt per feature, with specific UI and behavior requirements.
+
+## Phase 5: Polish and Deploy
+
+```
+Add these finishing touches:
+1. Loading skeletons for the task list
+2. Empty state when no tasks exist ("No tasks yet. Create one!")
+3. Confirm dialog before deleting a task
+4. Keyboard shortcut: "n" to open new task form
+5. Mobile-responsive layout (single column on small screens)
+```
+
+## Key Takeaways
+
+1. **Break it down** — One feature per prompt, not the whole app
+2. **Be specific** — Name your technologies, describe the UI, specify behavior
+3. **Review security** — Always manually audit auth, database, and input handling
+4. **Test incrementally** — Verify each piece works before building the next
+5. **Use context** — Reference your existing code in follow-up prompts
+
+The full app took about 15 prompts and 2 hours of vibecoding + review. Building the same thing from scratch traditionally would take 1-2 days.

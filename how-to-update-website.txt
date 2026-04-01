@@ -1,0 +1,68 @@
+HOW TO UPDATE YOUR WEBSITE - RnR Vibe
+======================================
+
+STEP 1: EDIT YOUR CODE
+-----------------------
+Your website files are in C:\Projects\rnrvibe\
+The main file is: C:\Projects\rnrvibe\app\page.tsx
+
+You can edit it with:
+- VS Code (if installed) - open the folder C:\Projects\rnrvibe
+- Notepad - right-click the file > Open with > Notepad
+- Claude Code - ask Claude to make changes (e.g., "change the hero text to...")
+
+
+STEP 2: PREVIEW YOUR CHANGES LOCALLY
+--------------------------------------
+1. Open a terminal (Command Prompt or PowerShell)
+2. Run:
+   cd C:\Projects\rnrvibe
+   npm run dev -- -p 4000
+3. Open http://localhost:4000 in your browser
+4. You'll see your changes live - the page auto-refreshes when you save edits
+
+
+STEP 3: BUILD FOR PRODUCTION
+------------------------------
+Once you're happy with the changes:
+1. In the same terminal, press Ctrl+C to stop the dev server
+2. Run:
+   cd C:\Projects\rnrvibe
+   npm run build
+   npm run start -- -p 4000
+3. This creates an optimized version and runs it
+
+
+STEP 4: VERIFY IT'S LIVE
+--------------------------
+- Open https://www.rnrvibe.com in your browser (or your phone)
+- Your changes are live - the Cloudflare Tunnel is already connected to port 4000
+
+
+QUICK SUMMARY (CHEAT SHEET)
+-----------------------------
+Edit code       -> Open C:\Projects\rnrvibe\app\page.tsx
+Preview locally -> cd C:\Projects\rnrvibe && npm run dev -- -p 4000
+Build & publish -> cd C:\Projects\rnrvibe && npm run build && npm run start -- -p 4000
+Check it's live -> Visit https://www.rnrvibe.com
+
+
+IMPORTANT NOTES
+----------------
+- You don't need to touch Cloudflare or the tunnel - it's always connected to port 4000
+- If your laptop restarts, you need to start the website again:
+    cd C:\Projects\rnrvibe
+    npm run build
+    npm run start -- -p 4000
+- The Cloudflare Tunnel auto-starts on boot (installed as a Windows service)
+- The only thing that doesn't auto-start is the website itself
+  Ask Claude to set up PM2 if you want it to auto-start
+
+
+KEY FILES
+----------
+Website code     -> C:\Projects\rnrvibe\app\page.tsx
+Website layout   -> C:\Projects\rnrvibe\app\layout.tsx
+Caddy config     -> C:\caddy\Caddyfile
+Tunnel config    -> C:\Users\obaid\.cloudflared\config.yml
+Tunnel ID        -> 058d989b-6278-4b00-b966-0c9c27dd231d

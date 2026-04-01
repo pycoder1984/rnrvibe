@@ -1,0 +1,95 @@
+---
+title: "Local AI vs Cloud AI for Coding: Privacy, Cost, and Speed"
+date: "2026-03-20"
+description: "A practical comparison of running AI models locally vs using cloud APIs for development — covering cost, latency, privacy, and quality."
+tags: ["local-ai", "comparison", "ollama", "privacy"]
+readTime: "6 min read"
+---
+
+# Local AI vs Cloud AI for Coding: Privacy, Cost, and Speed
+
+Should you run AI models on your own machine or use cloud APIs? After building RnR Vibe entirely on local LLMs, here's what we've learned.
+
+## The Case for Local AI
+
+### Privacy
+
+Your code never leaves your machine. For companies with strict data policies, government contractors, or anyone working with proprietary code, this isn't a nice-to-have — it's a requirement.
+
+### Cost
+
+Cloud API costs add up fast. A developer making 100 requests/day at $0.01-0.03 per request spends $30-90/month. A local setup costs $0/month after the initial hardware.
+
+### No Rate Limits
+
+When you're in a flow state and iterating rapidly, hitting a rate limit kills momentum. Local models have no rate limits, no quotas, and no "please try again later."
+
+### Offline Capability
+
+Local AI works on airplanes, in coffee shops with bad wifi, and during cloud provider outages. Your development workflow shouldn't depend on someone else's infrastructure.
+
+## The Case for Cloud AI
+
+### Quality
+
+Cloud models (GPT-4, Claude, Gemini) are significantly more capable than what runs locally. For complex architectural decisions, nuanced code review, or multi-step reasoning, cloud models produce better results.
+
+### Zero Setup
+
+`npm install openai` and an API key vs. downloading model weights, configuring Ollama, and ensuring your GPU has enough VRAM. Cloud APIs are dramatically easier to start with.
+
+### Always Current
+
+Cloud models are updated continuously. Local models require manual downloads of new versions.
+
+### Hardware Independence
+
+Cloud AI works the same on a Chromebook as on a workstation. Local LLMs need a decent GPU or fast CPU with lots of RAM.
+
+## Our Recommendation: Use Both
+
+Here's how we approach it at RnR Vibe:
+
+**Use local AI for:**
+- Repetitive generation tasks (boilerplate, components, CRUD operations)
+- Privacy-sensitive codebases
+- High-volume workflows where cost matters
+- Quick iterations during active development
+
+**Use cloud AI for:**
+- Complex architecture and design decisions
+- Debugging subtle or multi-file issues
+- Code review and security analysis
+- Learning and exploration
+
+## Getting Started with Local AI
+
+The easiest path is [Ollama](https://ollama.com):
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a coding model
+ollama pull llama3.1:8b-instruct-q4_K_M
+
+# Start using it
+ollama run llama3.1:8b-instruct-q4_K_M
+```
+
+For coding tasks, we recommend `llama3.1:8b-instruct-q4_K_M` as a balance between quality and speed. If you have more VRAM (16GB+), try `codellama:13b` for better results.
+
+## Performance Comparison
+
+| Factor | Local (Llama 3.1 8B) | Cloud (GPT-4/Claude) |
+|--------|----------------------|----------------------|
+| Latency (first token) | 200-500ms | 500-2000ms |
+| Quality (code gen) | Good for templates | Excellent |
+| Quality (reasoning) | Adequate | Superior |
+| Cost per request | $0 | $0.01-0.10 |
+| Privacy | Full | Varies |
+| Setup time | 15 min | 2 min |
+
+## The Bottom Line
+
+Local AI has reached a tipping point where it's "good enough" for 70-80% of daily coding tasks. Use it as your default, and reach for cloud models when you need the extra capability. Your wallet and your privacy will thank you.

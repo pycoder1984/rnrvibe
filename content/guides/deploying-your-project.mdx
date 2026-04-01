@@ -1,0 +1,198 @@
+---
+title: "Deploying Your Vibecoded Project"
+date: "2026-03-16"
+description: "A practical guide to getting your vibecoded project live on the internet — from choosing a platform to setting up a custom domain."
+tags: ["deployment", "hosting", "tutorial"]
+readTime: "9 min read"
+difficulty: "Beginner"
+---
+
+# Deploying Your Vibecoded Project
+
+You've built something. Now it's time to put it on the internet so real people can use it. This guide covers the most popular deployment options and walks you through each one.
+
+## Before You Deploy
+
+Run through this quick checklist:
+
+1. **Remove console.log statements** — They clutter the browser console and can leak information
+2. **Check environment variables** — No API keys or secrets hardcoded in your source files
+3. **Test on mobile** — Open your project in your phone's browser or use Chrome DevTools device mode
+4. **Check the build** — Run `npm run build` locally to catch errors before deploying
+
+## Option 1: Vercel (Recommended for Next.js)
+
+Vercel is built by the team behind Next.js. If your project uses Next.js, this is the easiest path.
+
+### Step-by-Step
+
+1. Push your code to a GitHub repository
+2. Go to [vercel.com](https://vercel.com) and sign in with GitHub
+3. Click "Import Project" and select your repository
+4. Vercel auto-detects Next.js and configures everything
+5. Click "Deploy" — your site is live in about 60 seconds
+
+### Setting Environment Variables
+
+If your project uses environment variables (like API keys), add them in:
+
+**Vercel Dashboard → Your Project → Settings → Environment Variables**
+
+Add each variable with its key and value. Vercel makes them available as `process.env.YOUR_KEY` in your server-side code.
+
+### Custom Domain
+
+1. Go to your project's **Settings → Domains**
+2. Type your domain name and click "Add"
+3. Update your domain's DNS records as Vercel instructs
+4. SSL certificate is provisioned automatically
+
+## Option 2: Netlify (Great for Static Sites)
+
+Netlify excels at static sites, JAMstack apps, and projects that don't need server-side rendering.
+
+### Step-by-Step
+
+1. Push your code to GitHub
+2. Go to [netlify.com](https://netlify.com) and sign in
+3. Click "Add New Site → Import an Existing Project"
+4. Select your repo and configure build settings:
+   - **Build command:** `npm run build`
+   - **Publish directory:** `out` (for static export) or `.next` (with the Netlify Next.js plugin)
+5. Click "Deploy Site"
+
+### When to Choose Netlify Over Vercel
+
+- You're building a static site (HTML/CSS/JS, no server rendering)
+- You want built-in form handling without a backend
+- You need split testing (A/B testing) for different versions
+- You prefer Netlify's UI and workflow
+
+## Option 3: Cloudflare Pages
+
+Cloudflare Pages is fast, free, and integrates with Cloudflare's global CDN.
+
+### Step-by-Step
+
+1. Push your code to GitHub
+2. Go to the Cloudflare dashboard → **Workers & Pages → Create**
+3. Connect your GitHub account and select your repo
+4. Set build settings:
+   - **Framework preset:** Next.js (or your framework)
+   - **Build command:** `npm run build`
+5. Deploy
+
+### Advantages
+
+- Unlimited bandwidth on the free tier
+- Global CDN with 300+ edge locations
+- Built-in Web Analytics (privacy-friendly)
+- Cloudflare Workers for serverless functions
+
+## Option 4: Railway (Full-Stack with Database)
+
+If your project needs a database, background jobs, or other backend services, Railway handles everything.
+
+### Step-by-Step
+
+1. Go to [railway.app](https://railway.app) and sign in with GitHub
+2. Click "New Project → Deploy from GitHub Repo"
+3. Select your repository
+4. Railway detects your framework and builds automatically
+5. To add a database: click "New Service → Database → PostgreSQL"
+
+### Connecting Your Database
+
+Railway gives you a connection string. Add it as an environment variable:
+
+```
+DATABASE_URL=postgresql://user:pass@host:port/dbname
+```
+
+Your Prisma or database client picks it up automatically.
+
+## Option 5: GitHub Pages (Free Static Hosting)
+
+For simple HTML/CSS/JS projects, GitHub Pages is zero-cost and zero-config.
+
+### Step-by-Step
+
+1. Push your project to a GitHub repository
+2. Go to **Settings → Pages**
+3. Under "Source," select the branch and folder (`/root` or `/docs`)
+4. Click "Save" — your site is live at `username.github.io/repo-name`
+
+### Limitations
+
+- Static files only (no server-side code)
+- No environment variables
+- Limited to public repositories on the free tier
+
+## Choosing the Right Platform
+
+| Feature | Vercel | Netlify | Cloudflare | Railway | GH Pages |
+|---------|--------|---------|------------|---------|----------|
+| Free tier | Yes | Yes | Yes | Limited | Yes |
+| Next.js support | Best | Good | Good | Good | No |
+| Database | No | No | D1 | Yes | No |
+| Custom domain | Yes | Yes | Yes | Yes | Yes |
+| SSL | Auto | Auto | Auto | Auto | Auto |
+| Serverless functions | Yes | Yes | Workers | Yes | No |
+
+**Quick decision guide:**
+- **Next.js app?** → Vercel
+- **Static site?** → Netlify or Cloudflare Pages
+- **Need a database?** → Railway
+- **Simple HTML project?** → GitHub Pages
+
+## Post-Deployment Checklist
+
+Once your site is live:
+
+- [ ] **Visit the URL** — Make sure everything loads correctly
+- [ ] **Test on mobile** — Check responsive layout on a real device
+- [ ] **Check forms** — Submit every form and verify it works
+- [ ] **Test API routes** — Hit your API endpoints and confirm responses
+- [ ] **Set up monitoring** — Add error tracking (Sentry has a free tier)
+- [ ] **Submit to Google** — Add your site to Google Search Console
+- [ ] **Share it** — Post the link, get feedback, iterate
+
+## Continuous Deployment
+
+All platforms listed above support automatic deploys. When you push code to your main branch, the platform rebuilds and deploys automatically. This means:
+
+1. Make changes locally
+2. `git add . && git commit -m "your changes"`
+3. `git push`
+4. Your live site updates in 30-90 seconds
+
+No FTP, no manual uploads, no "forgetting to deploy." Push code, it goes live.
+
+## Common Deployment Problems
+
+### "Build failed"
+
+The most common issue. Run `npm run build` locally to see the exact error. Common causes:
+- TypeScript errors (missing types, wrong imports)
+- Missing environment variables
+- Dependencies not installed
+
+### "Works locally but not in production"
+
+Usually caused by:
+- Hardcoded `localhost` URLs in your code
+- File system operations (serverless platforms don't have persistent storage)
+- Missing environment variables in the platform dashboard
+
+### "Site is slow"
+
+- Enable caching headers for static assets
+- Optimize images (use WebP, lazy loading)
+- Check if your API endpoints are slow (add timing logs)
+
+## Next Steps
+
+Your project is live! Now consider:
+- Setting up [error monitoring](/blog/shipping-your-first-project) for production
+- Writing a [README](/tools/readme-generator) so others can contribute
+- Reading our guide on [debugging](/guides/debugging-ai-code) for when things go wrong in production

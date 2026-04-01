@@ -1,0 +1,133 @@
+---
+title: "Contributing to Open Source with AI: A Beginner's Playbook"
+date: "2026-03-10"
+description: "How to make your first open-source contribution using AI tools — from finding issues to writing PRs that get merged."
+tags: ["open-source", "github", "beginner", "community"]
+readTime: "7 min read"
+---
+
+# Contributing to Open Source with AI: A Beginner's Playbook
+
+Open source contributions used to require deep expertise in a codebase. AI has changed that equation. Here's how to make your first contribution — and have it actually get merged.
+
+## Why Contribute?
+
+- **Learn from real codebases** — production code teaches things tutorials can't
+- **Build your GitHub profile** — visible proof of your skills
+- **Join a community** — maintainers remember good contributors
+- **Give back** — you use open-source software every day
+
+## Step 1: Find the Right Project
+
+### Where to Look
+
+- **Projects you use.** If you use a tool daily, you understand its problems.
+- **GitHub's "good first issue" label.** Filter for issues tagged `good first issue` or `help wanted`.
+- **Trending repos in your language.** Active projects merge PRs faster.
+
+### What to Avoid (For Now)
+
+- Repos with no recent activity (your PR will sit forever)
+- Repos with hundreds of open PRs (bottleneck)
+- Core framework code (too complex for a first contribution)
+
+## Step 2: Start Small
+
+The best first contributions aren't code:
+
+- **Fix a typo in documentation** — yes, this counts
+- **Add a missing example** to the README
+- **Improve an error message** to be more helpful
+- **Add a test** for an untested function
+
+These teach you the contribution workflow without the pressure of changing core logic.
+
+## Step 3: Understand the Code with AI
+
+Found an issue you want to fix? Use AI to understand the codebase fast:
+
+1. **Clone the repo** and open it in your editor
+2. **Paste the relevant file** into our [Code Explainer](/tools/code-explainer) and ask "What does this code do?"
+3. **Read the issue carefully** — understand what needs to change
+4. **Ask AI to locate the fix:** "Given this error [paste error], which function in this file [paste file] is likely responsible?"
+
+This process takes 15 minutes instead of hours of reading source code.
+
+## Step 4: Write the Fix
+
+Use AI to draft the fix, but follow the project's style:
+
+- **Match the existing code style.** If they use semicolons, you use semicolons. If they use tabs, you use tabs.
+- **Follow their testing patterns.** Look at existing tests and write yours the same way.
+- **Keep changes minimal.** Fix the issue and nothing else. Don't refactor surrounding code.
+
+Use our [Vibe Checker](/tools/vibe-checker) to review your changes before submitting.
+
+## Step 5: Write a Good PR
+
+Your pull request description matters as much as the code:
+
+```markdown
+## What
+
+Fix the crash when `username` is null in the profile handler.
+
+## Why
+
+Issue #234 — users who sign up with OAuth but don't set a username
+trigger a TypeError on the profile page.
+
+## How
+
+Added a null check before accessing `username.toLowerCase()` and
+fall back to displaying the email address instead.
+
+## Testing
+
+- Added a test case for null username
+- Tested manually with OAuth signup flow
+```
+
+Keep it short, specific, and linked to the issue.
+
+## Step 6: Respond to Feedback
+
+Maintainers will review your PR and may request changes. This is normal — not a rejection.
+
+- **Respond promptly** — within a day or two
+- **Don't argue** — if they want a different approach, try it
+- **Ask questions** if feedback is unclear
+- **Use AI to implement changes** — paste the review comment and your code, ask AI for the fix
+
+## AI-Assisted Contribution Workflow
+
+Here's the complete workflow:
+
+1. Fork the repo
+2. Clone locally
+3. Create a branch (`fix/null-username-crash`)
+4. Use [Code Explainer](/tools/code-explainer) to understand the relevant code
+5. Write the fix (AI-assisted)
+6. Use [Vibe Checker](/tools/vibe-checker) to review
+7. Run the project's test suite
+8. Use [Commit Writer](/tools/commit-writer) for a proper commit message
+9. Push and open a PR
+10. Respond to review feedback
+
+## Common Mistakes
+
+- **Opening a PR without reading the contributing guide.** Every project has one — read it.
+- **Changing too many files.** One issue = one focused PR.
+- **Not running tests.** Always run `npm test` (or equivalent) before pushing.
+- **Explaining the fix in the code instead of the PR.** Comments say "what changed," PRs explain "why."
+- **Getting discouraged by rejection.** Some PRs don't get merged. Learn from the feedback and try again.
+
+## Your First Week Plan
+
+- **Day 1-2:** Find a project and an issue. Read the contributing guide.
+- **Day 3-4:** Clone the repo, understand the relevant code with AI.
+- **Day 5:** Write and test the fix.
+- **Day 6:** Open the PR.
+- **Day 7:** Celebrate — you're an open-source contributor.
+
+The open-source community needs more contributors. AI makes the barrier lower than ever. Pick an issue and start today.

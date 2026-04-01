@@ -1,0 +1,164 @@
+---
+title: "When Vibecoding Goes Wrong: Real Failures and How to Avoid Them"
+date: "2026-03-05"
+description: "Cautionary tales from the vibecoding world — real examples of AI-generated code that caused problems, and the lessons learned."
+tags: ["mistakes", "security", "debugging"]
+readTime: "7 min read"
+---
+
+# When Vibecoding Goes Wrong: Real Failures and How to Avoid Them
+
+Vibecoding is powerful. But power without understanding is dangerous. Here are real patterns of failure that happen when developers trust AI-generated code without review — and how to prevent each one.
+
+## Failure 1: The Exposed API Key
+
+**What happened:** A developer asked AI to build a weather app. The AI generated code that called the OpenWeatherMap API directly from the frontend JavaScript, with the API key hardcoded in the source.
+
+```javascript
+// This was in the client-side code, visible to anyone
+const API_KEY = "sk-abc123def456...";
+fetch(`https://api.openweathermap.org/data/2.5/weather?appid=${API_KEY}&q=${city}`);
+```
+
+The app worked perfectly. But within hours of deployment, someone found the API key in the browser's Network tab, used it for their own project, and the developer got a $200 bill.
+
+**The lesson:** AI doesn't distinguish between client and server code unless you tell it to. Always specify:
+
+```
+Create a server-side API route that calls the weather API.
+The API key should be stored in an environment variable,
+never exposed to the client.
+```
+
+## Failure 2: The SQL Injection Nobody Caught
+
+**What happened:** A small business owner vibecoded a customer directory. The AI generated a search feature:
+
+```javascript
+// AI-generated code with SQL injection vulnerability
+const query = `SELECT * FROM customers WHERE name LIKE '%${searchTerm}%'`;
+```
+
+A curious user typed `'; DROP TABLE customers; --` into the search box. The entire customer database was deleted.
+
+**The lesson:** Always tell AI to use parameterized queries:
+
+```
+Use parameterized queries for all database operations.
+Never interpolate user input directly into SQL strings.
+```
+
+And always use our [Vibe Checker](/tools/vibe-checker) before deploying database-connected code.
+
+## Failure 3: The Infinite Loop
+
+**What happened:** A developer asked AI to build a React component that fetches data and updates the UI. The AI wrote:
+
+```javascript
+function UserList() {
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => setUsers(data));
+  }); // Missing dependency array!
+
+  return <div>{users.map(u => <p key={u.id}>{u.name}</p>)}</div>;
+}
+```
+
+The missing dependency array (`[]`) caused the `useEffect` to fire on every render, which triggered a state update, which caused another render, which fired another fetch. The API received 10,000 requests in under a minute.
+
+**The lesson:** AI sometimes generates React code with subtle lifecycle bugs. Always check:
+
+- Does `useEffect` have the correct dependency array?
+- Are state updates causing unnecessary re-renders?
+- Are event handlers properly cleaned up?
+
+## Failure 4: The "It Works on Localhost" Deployment
+
+**What happened:** A developer vibecoded a full-stack app that used file system storage:
+
+```javascript
+// Works locally, fails in production
+const data = fs.readFileSync('./data/users.json');
+```
+
+Deployed to a serverless platform (Vercel), the app crashed because serverless functions don't have a persistent file system. Every deploy wiped the data.
+
+**The lesson:** AI often defaults to the simplest storage mechanism (files), which doesn't work in production. Specify your deployment target:
+
+```
+I'm deploying to Vercel. Use a database (Supabase/PostgreSQL)
+for data storage, not the file system. Serverless functions
+don't have persistent file storage.
+```
+
+## Failure 5: The Accessibility Lawsuit
+
+**What happened:** A small e-commerce site was vibecoded with beautiful UI but zero accessibility considerations. A visually impaired user couldn't navigate the site with a screen reader — buttons had no labels, images had no alt text, and form inputs had no associated labels.
+
+The business received a demand letter citing ADA violations.
+
+**The lesson:** AI-generated UI often looks great but fails basic accessibility standards. Always include in your prompt:
+
+```
+Ensure all components meet WCAG 2.1 AA standards:
+- All images need descriptive alt text
+- All buttons and links need accessible labels
+- Color contrast must meet minimum ratios
+- The site must be fully navigable by keyboard
+```
+
+## Failure 6: The Memory Leak
+
+**What happened:** A real-time dashboard was vibecoded with WebSocket connections. The AI created event listeners but never cleaned them up:
+
+```javascript
+useEffect(() => {
+  const ws = new WebSocket('wss://api.example.com/stream');
+  ws.onmessage = (event) => {
+    setData(JSON.parse(event.data));
+  };
+  // No cleanup! Connection stays open forever
+}, []);
+```
+
+After a few hours, the browser tab was using 2GB of memory. After a day, it crashed.
+
+**The lesson:** Always ask for cleanup code:
+
+```
+Make sure to properly close WebSocket connections,
+remove event listeners, and clear intervals/timeouts
+in the useEffect cleanup function.
+```
+
+## The Pattern Behind Every Failure
+
+Notice something? Every failure shares the same root cause: **the developer treated AI output as finished code.**
+
+AI-generated code is a first draft. It's a really good first draft — often better than what a junior developer would write. But it optimizes for "working" rather than "correct," "secure," or "production-ready."
+
+## A Simple Prevention Framework
+
+Before deploying any vibecoded project, run through **SAFE**:
+
+- **S**ecurity — Are inputs validated? Are secrets hidden? Are queries parameterized?
+- **A**ccessibility — Can everyone use it? Keyboard navigation? Screen readers?
+- **F**unctionality — Does it handle edge cases? Empty states? Errors? Slow networks?
+- **E**nvironment — Does it work in production, not just localhost? Right database? Right hosting?
+
+Spend 30 minutes on this checklist and you'll avoid 90% of the failures that give vibecoding a bad name.
+
+## Vibecoding Done Right
+
+These stories aren't meant to scare you away from vibecoding. They're meant to make you a *better* vibecoder. The developers who succeed are the ones who:
+
+1. Write specific, constraint-aware prompts
+2. Review every line of generated code
+3. Test edge cases before deploying
+4. Use tools like our [Vibe Checker](/tools/vibe-checker) for automated review
+
+Vibecoding is a superpower. Just remember: with great power comes great responsibility to actually read the code before you ship it.

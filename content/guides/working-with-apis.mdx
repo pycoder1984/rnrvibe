@@ -1,0 +1,260 @@
+---
+title: "Working with Third-Party APIs in Vibecoded Apps"
+date: "2026-03-25"
+description: "How to integrate external APIs into your AI-built apps — authentication, error handling, rate limits, and common pitfalls."
+tags: ["api", "integration", "fetch", "intermediate"]
+readTime: "9 min read"
+difficulty: "Intermediate"
+---
+
+# Working with Third-Party APIs in Vibecoded Apps
+
+Most real apps need to talk to external services: payment processors, email providers, weather data, social media. Here's how to integrate APIs properly when vibecoding.
+
+## The Basics: Making API Calls
+
+### Client-Side vs Server-Side
+
+**Rule #1:** Never put API keys in client-side code. Ever.
+
+```typescript
+// BAD — API key exposed in browser
+// app/components/Weather.tsx
+const res = await fetch(
+  `https://api.weather.com/data?key=abc123`  // Anyone can see this
+);
+
+// GOOD — API key stays on the server
+// app/api/weather/route.ts
+const res = await fetch(
+  `https://api.weather.com/data?key=${process.env.WEATHER_API_KEY}`
+);
+```
+
+AI frequently puts API keys in client components. Always move API calls to server-side routes or server components.
+
+### The Basic Pattern
+
+```typescript
+// app/api/weather/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(req: NextRequest) {
+  const city = req.nextUrl.searchParams.get("city");
+
+  if (!city) {
+    return NextResponse.json(
+      { error: "City parameter is required" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.weather.com/v1/current?city=${encodeURIComponent(city)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WEATHER_API_KEY}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Weather API returned ${res.status}`);
+    }
+
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to fetch weather data" },
+      { status: 502 }
+    );
+  }
+}
+```
+
+## Authentication Patterns
+
+Different APIs use different auth methods:
+
+### API Key in Header
+
+```typescript
+headers: {
+  "X-API-Key": process.env.SERVICE_API_KEY,
+}
+```
+
+### Bearer Token
+
+```typescript
+headers: {
+  Authorization: `Bearer ${process.env.SERVICE_TOKEN}`,
+}
+```
+
+### Basic Auth
+
+```typescript
+headers: {
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.SERVICE_USER}:${process.env.SERVICE_PASS}`
+  ).toString("base64")}`,
+}
+```
+
+### OAuth 2.0
+
+OAuth is more complex — it requires a token exchange flow. Use our [API Endpoint Generator](/tools/api-endpoint) to scaffold the OAuth callback handler.
+
+## Error Handling
+
+AI-generated API code usually handles the happy path. Real integrations need to handle failures:
+
+### The Error Hierarchy
+
+```typescript
+async function callExternalAPI(params: RequestParams) {
+  // 1. Validate inputs before making the request
+  if (!params.id) {
+    throw new Error("Missing required parameter: id");
+  }
+
+  // 2. Make the request with a timeout
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${process.env.API_KEY}` },
+    });
+
+    clearTimeout(timeout);
+
+    // 3. Handle HTTP errors
+    if (res.status === 401) {
+      throw new Error("API key is invalid or expired");
+    }
+    if (res.status === 429) {
+      throw new Error("Rate limit exceeded — try again later");
+    }
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
+
+    // 4. Parse and validate the response
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    clearTimeout(timeout);
+
+    // 5. Handle network errors
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw error;
+  }
+}
+```
+
+### What to Show Users
+
+Never expose raw API errors to users:
+
+```typescript
+// BAD
+return NextResponse.json({ error: err.message }); // Might leak internals
+
+// GOOD
+console.error("Weather API error:", err); // Log the details
+return NextResponse.json(
+  { error: "Weather data is temporarily unavailable" },
+  { status: 502 }
+);
+```
+
+## Rate Limiting
+
+Most APIs have rate limits. Respect them or get banned:
+
+### Add Caching
+
+```typescript
+const cache = new Map<string, { data: unknown; expires: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getCachedData(key: string, fetcher: () => Promise<unknown>) {
+  const cached = cache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
+  }
+
+  const data = await fetcher();
+  cache.set(key, { data, expires: Date.now() + CACHE_TTL });
+  return data;
+}
+```
+
+### Add Retry with Backoff
+
+```typescript
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.status === 429) {
+        const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (i === retries - 1) throw err;
+    }
+  }
+}
+```
+
+## Environment Variables
+
+Use our [Env Variable Generator](/tools/env-generator) to create a `.env.example` for your project. Always include:
+
+```env
+# .env.local (never commit this file)
+WEATHER_API_KEY=your_key_here
+STRIPE_SECRET_KEY=sk_test_xxx
+DATABASE_URL=postgresql://...
+```
+
+And in `.env.example` (commit this):
+
+```env
+# Get your key at https://weather.com/api
+WEATHER_API_KEY=
+STRIPE_SECRET_KEY=
+DATABASE_URL=
+```
+
+## Common AI Mistakes with APIs
+
+1. **API keys in client code** — always move to server-side
+2. **No error handling** — AI writes the happy path only
+3. **No timeout** — requests can hang forever without `AbortController`
+4. **No caching** — hitting the API on every request wastes quota
+5. **Hardcoded URLs** — use environment variables for API base URLs
+6. **No input validation** — user input goes straight into the API URL without sanitization
+7. **Logging sensitive data** — console.log that includes API keys or tokens
+
+## Checklist Before Shipping
+
+- [ ] All API keys are in environment variables
+- [ ] API calls happen server-side only
+- [ ] Error responses don't leak internal details
+- [ ] Timeouts are set on all external requests
+- [ ] Rate-sensitive endpoints have caching
+- [ ] User input is validated and sanitized before use in API calls
+- [ ] `.env.example` is committed; `.env.local` is in `.gitignore`
+
+External APIs are the glue that makes apps useful. Get the integration right, and everything else falls into place.

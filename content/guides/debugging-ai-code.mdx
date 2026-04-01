@@ -1,0 +1,135 @@
+---
+title: "Debugging AI-Generated Code"
+date: "2026-03-09"
+description: "AI code looks right but doesn't work? Learn systematic techniques for finding and fixing bugs in vibecoded projects."
+tags: ["debugging", "troubleshooting", "intermediate"]
+readTime: "8 min read"
+difficulty: "Intermediate"
+---
+
+# Debugging AI-Generated Code
+
+AI-generated code has a unique failure mode: it looks perfectly reasonable but doesn't work. Here's a systematic approach to finding and fixing these bugs.
+
+## Common AI Code Bugs
+
+### 1. Phantom APIs and Methods
+
+AI models sometimes "hallucinate" methods that don't exist. They'll call `array.findLast()` in an environment that doesn't support it, or use a library function with the wrong signature.
+
+**How to spot it:** Look for method calls you've never seen before. Check the documentation.
+
+```javascript
+// AI wrote this — looks fine, but .toSorted() might not exist
+// in your Node.js version
+const sorted = items.toSorted((a, b) => a.date - b.date);
+
+// Safe alternative
+const sorted = [...items].sort((a, b) => a.date - b.date);
+```
+
+### 2. Wrong Import Paths
+
+AI frequently guesses import paths, especially in monorepos or projects with custom aliases.
+
+```typescript
+// AI guessed this path
+import { db } from "@/lib/database";
+
+// But your actual file is
+import { db } from "@/lib/db";
+```
+
+**Fix:** Always verify imports match your actual file structure.
+
+### 3. Async/Await Mistakes
+
+AI code often forgets `await` on async operations, or adds `async` to functions that don't need it. The code runs without errors but produces unexpected results.
+
+```typescript
+// Bug: missing await — user will be undefined
+function getUser(id: string) {
+  const user = db.user.findUnique({ where: { id } });
+  return user; // Returns a Promise, not a User
+}
+
+// Fix
+async function getUser(id: string) {
+  const user = await db.user.findUnique({ where: { id } });
+  return user;
+}
+```
+
+### 4. Stale Closure Values
+
+In React components, AI-generated event handlers often capture stale state values.
+
+```jsx
+// Bug: count is always 0 inside the interval
+const [count, setCount] = useState(0);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setCount(count + 1); // Always 0 + 1 = 1
+  }, 1000);
+  return () => clearInterval(interval);
+}, []);
+
+// Fix: use functional update
+setCount(prev => prev + 1);
+```
+
+## The Debugging Process
+
+### Step 1: Read the Error
+
+Sounds obvious, but AI-generated code produces errors you didn't write, so you might skim them. Read the full error message and stack trace. The line numbers point you directly to the problem.
+
+### Step 2: Isolate the Failure
+
+If a whole feature is broken, comment out sections until you find the specific line that fails. AI tends to produce all-or-nothing code blocks — narrowing down the problem is your job.
+
+### Step 3: Check Types at Runtime
+
+AI-generated TypeScript often has types that don't match runtime reality. Add `console.log(typeof variable, variable)` at key points to verify.
+
+```typescript
+// AI says this returns User[], but does it really?
+const users = await getUsers();
+console.log("users:", typeof users, Array.isArray(users), users);
+```
+
+### Step 4: Ask AI to Fix It
+
+Once you've identified the bug, the most effective debugging prompt is:
+
+```
+This code throws [exact error message] on line [X].
+Here's the relevant code: [paste code].
+Here's what I expected: [behavior].
+Here's what actually happens: [behavior].
+Fix the bug.
+```
+
+Giving the AI the error message and both expected/actual behavior dramatically improves the fix quality.
+
+## Prevention Strategies
+
+### Use TypeScript Strictly
+
+Enable `strict: true` in your `tsconfig.json`. This catches type mismatches, null reference errors, and missing return types at compile time — before they become runtime bugs.
+
+### Test Each Prompt's Output
+
+Don't stack 5 prompts of generated code and then test. Generate, test, commit. Generate, test, commit. Finding a bug in 20 lines is easy. Finding it in 200 is painful.
+
+### Keep AI Context Fresh
+
+If you've made manual changes to your code, paste the updated version back to the AI before asking for the next feature. Stale context is the #1 cause of integration bugs.
+
+## Tools That Help
+
+- **[Vibe Checker](/tools/vibe-checker)** — Automated code review that catches common AI bugs
+- **[Code Explainer](/tools/code-explainer)** — Understand what AI-generated code actually does before running it
+- **Browser DevTools** — Network tab for API issues, Console for runtime errors
+- **TypeScript compiler** — Your first line of defense against type bugs

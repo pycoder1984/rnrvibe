@@ -1,0 +1,300 @@
+---
+title: "Git and Version Control for Vibeccoders"
+date: "2026-03-07"
+description: "A beginner-friendly guide to Git — save your work, undo mistakes, collaborate with others, and never lose code again."
+tags: ["git", "beginner", "workflow"]
+readTime: "9 min read"
+difficulty: "Beginner"
+---
+
+# Git and Version Control for Vibeccoders
+
+You've been vibecoding and your project is growing. One wrong prompt and the AI rewrites a file that was working. You press Ctrl+Z but it's too late — the change is gone. This is why version control exists.
+
+Git saves snapshots of your code so you can always go back to a working version. It's the safety net every vibecoder needs.
+
+## Why Git Matters for Vibecoding
+
+Vibecoding involves a lot of experimentation. You try a prompt, see the result, try another, undo, try again. Without Git:
+
+- One bad AI response can overwrite working code
+- You can't compare "before" and "after" for a change
+- Collaborating with others means copying files back and forth
+- Deploying to platforms like Vercel requires a Git repository
+
+With Git, you can experiment freely knowing you can always roll back.
+
+## Setup (One Time)
+
+### Install Git
+
+- **Windows:** Download from [git-scm.com](https://git-scm.com) or use `winget install Git.Git`
+- **Mac:** Run `xcode-select --install` in Terminal
+- **Linux:** `sudo apt install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora)
+
+### Configure Your Identity
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
+```
+
+### Create a GitHub Account
+
+Go to [github.com](https://github.com) and sign up. GitHub stores your code online so it's backed up and shareable.
+
+## The 5 Git Commands You Need
+
+You can be productive with Git using just five commands:
+
+### 1. `git init` — Start Tracking a Project
+
+Run this once in your project folder:
+
+```bash
+cd my-project
+git init
+```
+
+This creates a hidden `.git` folder that stores your history. You only do this once per project.
+
+### 2. `git add` — Stage Changes
+
+Tell Git which files you want to save:
+
+```bash
+git add .              # Stage everything
+git add index.html     # Stage one specific file
+git add src/           # Stage an entire folder
+```
+
+Think of staging as putting files in a box. The next command seals the box.
+
+### 3. `git commit` — Save a Snapshot
+
+```bash
+git commit -m "Add contact form"
+```
+
+This saves a permanent snapshot of all staged files. The message describes what changed. Good messages are short and specific:
+
+- "Add user login page" (good)
+- "Fix bug in price calculation" (good)
+- "Update stuff" (bad)
+- "asdf" (terrible)
+
+### 4. `git status` — See What Changed
+
+```bash
+git status
+```
+
+Shows you which files are modified, staged, or untracked. Run this often — it's your dashboard.
+
+### 5. `git log` — View History
+
+```bash
+git log --oneline
+```
+
+Shows all your commits in reverse order. Each has a unique ID you can use to go back in time.
+
+## The Vibecoding Git Workflow
+
+Here's the workflow that works best with AI-generated code:
+
+### Before Each AI Prompt
+
+```bash
+git add .
+git commit -m "Working version before [what you're about to change]"
+```
+
+This creates a save point. If the AI's response breaks something, you can go back.
+
+### After Each Successful Change
+
+```bash
+git add .
+git commit -m "[What you just added/changed]"
+```
+
+### If Something Breaks
+
+```bash
+# See what changed
+git diff
+
+# Undo all changes since last commit
+git checkout .
+
+# Or undo just one file
+git checkout -- src/broken-file.tsx
+```
+
+### The Golden Rule
+
+**Commit working code often.** Every time your app is in a good state, commit. You'll thank yourself later.
+
+## Pushing to GitHub
+
+### First Time Setup
+
+1. Create a new repository on GitHub (click the + button → New Repository)
+2. Don't add a README (you already have code)
+3. Copy the repository URL
+
+```bash
+git remote add origin https://github.com/yourname/your-repo.git
+git push -u origin main
+```
+
+### After That
+
+Every time you want to back up your code:
+
+```bash
+git push
+```
+
+That's it. Your code is now safely stored on GitHub.
+
+## Branching: Safe Experimentation
+
+Branches let you try things without affecting your main code:
+
+```bash
+# Create a new branch for an experiment
+git checkout -b experiment/new-feature
+
+# ... make changes, commit as usual ...
+
+# If it works, merge it back
+git checkout main
+git merge experiment/new-feature
+
+# If it doesn't work, just delete it
+git checkout main
+git branch -d experiment/new-feature
+```
+
+### When to Branch
+
+- **Trying a risky AI prompt** — Branch first, experiment safely
+- **Adding a big feature** — Keep main working while you build
+- **Fixing a bug** — Branch, fix, merge. Clean and traceable
+
+## The .gitignore File
+
+Some files should never be committed:
+
+```
+# Create a .gitignore file in your project root
+node_modules/
+.env
+.env.local
+.next/
+dist/
+*.log
+.DS_Store
+```
+
+This tells Git to ignore these files. The most important one is `.env` — this is where your API keys and secrets live. **Never commit secrets.**
+
+## Recovering from Mistakes
+
+### "I committed something I shouldn't have"
+
+```bash
+# Undo the last commit but keep the changes
+git reset --soft HEAD~1
+
+# Now fix what you need and commit again
+```
+
+### "I need to see an old version of a file"
+
+```bash
+# Show a file from 3 commits ago
+git show HEAD~3:src/App.tsx
+```
+
+### "I want to go back to a specific commit"
+
+```bash
+# Find the commit ID from git log
+git log --oneline
+
+# Create a new branch from that point
+git checkout -b recovery abc123f
+```
+
+### "I accidentally deleted a file"
+
+```bash
+# Restore a deleted file from the last commit
+git checkout HEAD -- path/to/deleted-file.tsx
+```
+
+## Commit Message Conventions
+
+Good commit messages make your history useful. Follow this pattern:
+
+```
+type: short description
+
+Types:
+- add: New feature or file
+- fix: Bug fix
+- update: Change to existing feature
+- remove: Delete code or feature
+- refactor: Code change that doesn't add/fix anything
+- style: Formatting, CSS changes
+- docs: Documentation updates
+```
+
+Examples:
+```
+add: user registration form
+fix: price calculation rounding error
+update: increase session timeout to 24 hours
+remove: deprecated payment provider
+```
+
+## Git with VS Code
+
+If you use VS Code, Git is built in:
+
+1. **Source Control panel** (left sidebar, branch icon) — Shows all changes
+2. **Click + to stage** files
+3. **Type a message and click the checkmark** to commit
+4. **Click the sync button** to push/pull
+
+You don't need to use the terminal at all, though knowing the commands helps when things go wrong.
+
+## Common Mistakes
+
+### Committing node_modules
+
+If you accidentally committed `node_modules/`:
+
+```bash
+echo "node_modules/" >> .gitignore
+git rm -r --cached node_modules/
+git commit -m "remove node_modules from tracking"
+```
+
+### Committing .env
+
+If you accidentally committed secrets:
+
+1. Add `.env` to `.gitignore`
+2. Remove it from Git: `git rm --cached .env`
+3. Commit the change
+4. **Rotate your secrets** — Any key that was committed should be considered compromised. Generate new ones.
+
+## Next Steps
+
+- Push your project to GitHub and [deploy it](/guides/deploying-your-project)
+- Read about [building full-stack apps](/guides/building-a-full-stack-app) where Git becomes essential
+- Try using branches for your next vibecoding experiment

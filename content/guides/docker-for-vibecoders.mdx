@@ -1,0 +1,273 @@
+---
+title: "Docker for Vibecoders: Containerizing Your Apps"
+date: "2026-03-15"
+description: "A beginner-friendly guide to Docker — what it is, why you need it, and how to containerize your vibecoded apps with AI assistance."
+tags: ["docker", "devops", "deployment", "beginner"]
+readTime: "9 min read"
+difficulty: "Beginner"
+---
+
+# Docker for Vibecoders: Containerizing Your Apps
+
+"Works on my machine" is the most common excuse in software development. Docker eliminates it. Here's how to containerize your vibecoded apps.
+
+## What Docker Actually Does
+
+Docker packages your app with everything it needs to run: the code, the runtime (Node.js, Python, etc.), the dependencies, and the configuration. This package is called a **container**.
+
+Think of it like shipping a product: instead of sending assembly instructions and hoping the customer has the right tools, you ship the finished product in a box.
+
+### Key Terms
+
+- **Image** — a blueprint for a container (like a class in programming)
+- **Container** — a running instance of an image (like an object)
+- **Dockerfile** — the recipe for building an image
+- **docker-compose.yml** — configuration for running multiple containers together
+
+## Why You Need It
+
+### 1. Consistent Environments
+
+Your app runs the same way on your laptop, your teammate's laptop, and the production server. No more "it works on my machine."
+
+### 2. Easy Onboarding
+
+New team member? `docker compose up` and they're running the full stack in minutes.
+
+### 3. Simplified Deployment
+
+Most cloud platforms (AWS, GCP, DigitalOcean, Railway) support Docker natively. Build once, deploy anywhere.
+
+### 4. Isolation
+
+Each service runs in its own container. Your Node.js app can't accidentally affect your database, and vice versa.
+
+## Your First Dockerfile
+
+For a Next.js app:
+
+```dockerfile
+FROM node:20-alpine AS base
+
+# Install dependencies
+FROM base AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Build the app
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+# Production image
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+This is a **multi-stage build** — it keeps the final image small by only including what's needed to run.
+
+Use our [Docker Compose Generator](/tools/docker-compose) to generate this for your specific stack.
+
+## Docker Compose for Full Stacks
+
+Most apps need more than one service. Docker Compose lets you define them together:
+
+```yaml
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/myapp
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: myapp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+```
+
+### Running It
+
+```bash
+# Start everything
+docker compose up -d
+
+# See logs
+docker compose logs -f
+
+# Stop everything
+docker compose down
+
+# Stop and delete data
+docker compose down -v
+```
+
+## The .dockerignore File
+
+Just like `.gitignore`, this tells Docker what NOT to include:
+
+```
+node_modules
+.next
+.git
+.env.local
+*.md
+```
+
+Without this, Docker copies your `node_modules` (which it reinstalls anyway) and `.git` history, making the build slow and the image huge.
+
+## Common Patterns
+
+### Development vs Production
+
+Use different compose files:
+
+```yaml
+# docker-compose.yml (production)
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+```
+
+```yaml
+# docker-compose.dev.yml (development)
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app          # Mount source code for hot reload
+      - /app/node_modules  # Don't override node_modules
+```
+
+### Adding Redis
+
+```yaml
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+```
+
+### Adding a Reverse Proxy
+
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app
+```
+
+## AI Prompting for Docker
+
+When asking AI to generate Docker configuration:
+
+> "Create a Dockerfile and docker-compose.yml for a Next.js app with a PostgreSQL database and Redis cache. Include:
+> - Multi-stage build for small image size
+> - Health checks on the database
+> - Named volumes for data persistence
+> - Environment variables for configuration
+> - A .dockerignore file"
+
+Use our [Docker Compose Generator](/tools/docker-compose) for this exact use case.
+
+## Common Mistakes
+
+### 1. Missing .dockerignore
+
+Without it, you copy `node_modules` into the image and then install them again. Builds take 10x longer.
+
+### 2. Using `latest` Tag
+
+```yaml
+# BAD — "latest" can change unexpectedly
+image: postgres:latest
+
+# GOOD — pinned version
+image: postgres:16-alpine
+```
+
+### 3. Running as Root
+
+```dockerfile
+# Add a non-root user
+RUN addgroup --system app && adduser --system --ingroup app app
+USER app
+```
+
+### 4. No Health Checks
+
+Without health checks, `depends_on` doesn't wait for a service to be ready — just for it to start. Your app might crash trying to connect to a database that's still initializing.
+
+### 5. Storing Data in Containers
+
+Containers are ephemeral. When they stop, their data is gone. Always use volumes for databases:
+
+```yaml
+volumes:
+  - pgdata:/var/lib/postgresql/data
+```
+
+## Debugging Docker Issues
+
+```bash
+# See what's running
+docker compose ps
+
+# Check logs for a specific service
+docker compose logs app
+
+# Open a shell inside a container
+docker compose exec app sh
+
+# Rebuild after changing Dockerfile
+docker compose build --no-cache
+```
+
+## Next Steps
+
+1. Install [Docker Desktop](https://docker.com/products/docker-desktop)
+2. Dockerize your current project using our [Docker Compose Generator](/tools/docker-compose)
+3. Test locally with `docker compose up`
+4. Deploy to a cloud platform that supports Docker
+
+Docker has a learning curve, but once you've containerized one project, you'll want to containerize everything. It makes deployment predictable and environments consistent — two things every developer wants.

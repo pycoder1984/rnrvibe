@@ -1,0 +1,277 @@
+---
+title: "TypeScript for Vibecoders: Types That Save You Time"
+date: "2026-03-13"
+description: "A practical TypeScript guide for vibecoded projects — the types that matter, common AI mistakes, and how to use TypeScript without fighting it."
+tags: ["typescript", "types", "beginner", "react"]
+readTime: "8 min read"
+difficulty: "Beginner"
+---
+
+# TypeScript for Vibecoders: Types That Save You Time
+
+TypeScript catches bugs before your code runs. AI generates TypeScript well, but often gets the types wrong in subtle ways. Here's what you need to know.
+
+## Why TypeScript Matters for Vibecoding
+
+When AI generates code, TypeScript acts as a safety net:
+
+- **Catch AI mistakes at build time** — if the AI returns the wrong type, TypeScript tells you immediately
+- **Better autocomplete** — your editor knows what properties exist on every object
+- **Self-documenting code** — types describe what a function expects and returns
+- **Refactoring confidence** — change a type and TypeScript shows every file affected
+
+## The Types You'll Use Daily
+
+### Basic Types
+
+```typescript
+const name: string = "RnR Vibe";
+const count: number = 42;
+const active: boolean = true;
+const tags: string[] = ["react", "nextjs"];
+```
+
+### Interfaces (For Objects)
+
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;  // Optional
+  role: "admin" | "user";  // Union type
+}
+```
+
+### Function Types
+
+```typescript
+function greet(name: string): string {
+  return `Hello, ${name}`;
+}
+
+// Arrow function with types
+const add = (a: number, b: number): number => a + b;
+```
+
+### React Component Props
+
+```typescript
+interface ButtonProps {
+  label: string;
+  onClick: () => void;
+  variant?: "primary" | "secondary";
+  disabled?: boolean;
+}
+
+function Button({ label, onClick, variant = "primary", disabled }: ButtonProps) {
+  return (
+    <button onClick={onClick} disabled={disabled}>
+      {label}
+    </button>
+  );
+}
+```
+
+## AI-Generated TypeScript: What Goes Wrong
+
+### 1. The `any` Escape Hatch
+
+AI uses `any` when it doesn't know the type:
+
+```typescript
+// BAD — AI gave up on typing
+const data: any = await response.json();
+
+// GOOD — define what you expect
+interface ApiResponse {
+  users: User[];
+  total: number;
+}
+const data: ApiResponse = await response.json();
+```
+
+Use our [TypeScript Type Generator](/tools/typescript-generator) to generate proper types from data descriptions.
+
+### 2. Wrong Event Types
+
+React event types trip up AI constantly:
+
+```typescript
+// Common AI mistakes
+onChange={(e) => setName(e.target.value)}  // Works but no type safety
+
+// Correct
+onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+
+// For forms
+onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  // ...
+}}
+```
+
+### 3. Nullable Types
+
+AI forgets that data might not exist:
+
+```typescript
+// BAD — crashes if user is null
+const name = user.name;
+
+// GOOD — handle the null case
+const name = user?.name ?? "Anonymous";
+
+// Or with a type guard
+if (!user) {
+  return <div>Loading...</div>;
+}
+// TypeScript now knows user is not null here
+return <div>{user.name}</div>;
+```
+
+### 4. API Response Types
+
+AI often types API responses too loosely:
+
+```typescript
+// BAD
+const res = await fetch("/api/users");
+const data = await res.json(); // data is `any`
+
+// GOOD
+interface UsersResponse {
+  users: User[];
+  pagination: {
+    page: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
+const res = await fetch("/api/users");
+const data: UsersResponse = await res.json();
+```
+
+## Essential TypeScript Patterns
+
+### Generic Components
+
+```typescript
+interface ListProps<T> {
+  items: T[];
+  renderItem: (item: T) => React.ReactNode;
+}
+
+function List<T>({ items, renderItem }: ListProps<T>) {
+  return <ul>{items.map(renderItem)}</ul>;
+}
+
+// Usage — TypeScript infers T
+<List items={users} renderItem={(user) => <li>{user.name}</li>} />
+```
+
+### Discriminated Unions (For State)
+
+```typescript
+type RequestState<T> =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error"; error: string };
+
+// TypeScript narrows the type based on status
+function UserProfile({ state }: { state: RequestState<User> }) {
+  switch (state.status) {
+    case "idle":
+      return null;
+    case "loading":
+      return <Spinner />;
+    case "success":
+      return <div>{state.data.name}</div>;  // TypeScript knows data exists
+    case "error":
+      return <div>{state.error}</div>;  // TypeScript knows error exists
+  }
+}
+```
+
+### Utility Types
+
+```typescript
+// Make all fields optional
+type PartialUser = Partial<User>;
+
+// Make all fields required
+type RequiredUser = Required<User>;
+
+// Pick specific fields
+type UserPreview = Pick<User, "id" | "name" | "avatar">;
+
+// Exclude specific fields
+type UserWithoutEmail = Omit<User, "email">;
+
+// Record type for maps
+type UserMap = Record<string, User>;
+```
+
+## TypeScript Config for Vibecoded Projects
+
+Your `tsconfig.json` should include strict mode:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+`strict: true` enables all the checks that catch bugs. Don't disable it — if AI generates code that doesn't pass strict mode, fix the types rather than loosening the config.
+
+## When to Add Types vs When to Let TypeScript Infer
+
+### Let TypeScript Infer
+
+```typescript
+// TypeScript already knows these types
+const name = "hello";         // string
+const count = 42;             // number
+const doubled = count * 2;    // number
+const users = [{ id: 1 }];   // { id: number }[]
+```
+
+### Add Types Explicitly
+
+```typescript
+// Function parameters — always type these
+function createUser(name: string, email: string): User { ... }
+
+// Complex objects
+const config: AppConfig = { ... };
+
+// API responses
+const data: ApiResponse = await res.json();
+
+// State with non-obvious initial values
+const [user, setUser] = useState<User | null>(null);
+```
+
+## Quick Fixes for Common TypeScript Errors
+
+| Error | Likely Cause | Fix |
+|-------|-------------|-----|
+| `Type 'X' is not assignable to type 'Y'` | Wrong type being passed | Check the expected type and convert |
+| `Property 'X' does not exist on type 'Y'` | Accessing a field that isn't in the type | Add it to the interface or check spelling |
+| `Object is possibly 'undefined'` | Accessing something that might not exist | Add optional chaining `?.` or a null check |
+| `Argument of type 'string' is not assignable to parameter of type 'X'` | Passing a generic string where a union is expected | Use `as const` or type the variable |
+
+## Next Steps
+
+1. Use our [TypeScript Type Generator](/tools/typescript-generator) to create types from data descriptions
+2. Enable `strict: true` in your `tsconfig.json`
+3. When AI generates `any`, replace it with a proper type
+4. Use our [Code Explainer](/tools/code-explainer) when you encounter TypeScript errors you don't understand
+
+TypeScript adds a small amount of upfront work for a massive reduction in bugs. Once you're used to it, coding without types feels like driving without a seatbelt.

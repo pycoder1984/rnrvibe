@@ -1,0 +1,111 @@
+---
+title: "AI Pair Programming: How to Collaborate with Your AI Assistant"
+date: "2026-03-27"
+description: "Practical strategies for effective AI pair programming — when to lead, when to follow, and how to get the best results from your AI coding partner."
+tags: ["pair-programming", "workflow", "productivity"]
+readTime: "6 min read"
+---
+
+# AI Pair Programming: How to Collaborate with Your AI Assistant
+
+Pair programming with a human has rules: one person drives, one navigates, and you swap. AI pair programming needs its own rules. Here's how to make it work.
+
+## The New Dynamic
+
+Traditional pair programming has two people with roughly equal capability. AI pair programming is different — you bring judgment, context, and taste. The AI brings speed, breadth of knowledge, and tireless execution.
+
+The best results come when you play to each side's strengths.
+
+## When You Should Lead
+
+### Architecture Decisions
+
+"Should this be a monolith or microservices?" "Where does the auth boundary go?" "What's the data model?"
+
+AI can suggest options, but you know your constraints: team size, timeline, infrastructure budget, maintenance capacity. Lead these decisions and use AI to explore the options.
+
+### User Experience
+
+AI generates functional UIs, but "functional" and "good" aren't the same. You understand your users. Lead on:
+
+- Navigation flow and information hierarchy
+- Error message tone and helpfulness
+- Loading state design
+- Mobile interaction patterns
+
+### Security-Critical Code
+
+Never delegate security decisions to AI without review. Lead on:
+
+- Authentication and authorization logic
+- Input validation rules
+- Data encryption choices
+- Access control policies
+
+## When AI Should Lead
+
+### Boilerplate Generation
+
+Forms, CRUD endpoints, database migrations, config files — let AI write the first draft. These are well-defined patterns where AI excels.
+
+### Syntax and API Knowledge
+
+"How do I use the Intersection Observer API?" "What's the Prisma syntax for a many-to-many relation?" AI knows these cold. Ask directly instead of searching documentation.
+
+### Refactoring
+
+"Convert this class component to a functional component with hooks." "Extract this repeated logic into a shared utility." AI handles mechanical transformations reliably.
+
+### Test Writing
+
+Describe what you want tested, and let AI generate the test cases. It's good at thinking of edge cases you might miss.
+
+## The Conversation Pattern
+
+The most productive AI pair programming follows this pattern:
+
+1. **You set context:** "I'm building a dashboard that shows real-time sales data. We're using Next.js and Chart.js. The data comes from a REST API."
+
+2. **You make a specific request:** "Create the API route that fetches today's sales grouped by hour."
+
+3. **AI generates code.**
+
+4. **You review and redirect:** "This looks good, but it's missing error handling for when the API is down. Also, add caching — we don't need fresh data every request."
+
+5. **AI refines.**
+
+6. **You integrate and test.**
+
+The key is being specific at step 2 and honest at step 4. Vague requests get vague code. Polite silence about problems leads to shipping bugs.
+
+## Anti-Patterns to Avoid
+
+### The Rubber Stamp
+
+Accepting every AI suggestion without reading it. You'll ship bugs, security issues, and technical debt.
+
+### The Micromanager
+
+Dictating every line to the AI. If you're going to write it character by character, just write it yourself. Let AI draft, then you edit.
+
+### The Context Amnesiac
+
+Starting every prompt from scratch instead of building on previous context. Good AI pair programming is a conversation, not a series of isolated questions.
+
+### The Blame Shifter
+
+"The AI wrote it" isn't an excuse. You reviewed it (or should have). The code you ship is your responsibility.
+
+## Practical Tips
+
+**Keep a scratchpad.** When the AI generates something clever, save the prompt and the approach. Build a personal playbook.
+
+**Use the right tool for the job.** General chat for exploration, our [Vibe Checker](/tools/vibe-checker) for code review, our [Bug Fixer](/tools/bug-fixer) for debugging. Specialized tools outperform general prompts.
+
+**Time-box your iterations.** If three rounds of prompting haven't gotten the code right, write it yourself. Sometimes the AI doesn't understand what you need, and that's okay.
+
+**Talk out loud.** Seriously — describing what you're trying to do (even to yourself) clarifies your thinking and produces better prompts.
+
+## The Future of Pair Programming
+
+AI pair programming isn't replacing human collaboration. The best teams in 2026 use both: AI for the mechanical parts, humans for the creative and strategic parts. The skill isn't choosing one or the other — it's knowing when to use each.

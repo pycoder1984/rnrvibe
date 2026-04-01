@@ -1,0 +1,267 @@
+---
+title: "Building Beautiful UI with AI"
+date: "2026-03-18"
+description: "How to vibecode stunning user interfaces — from layout and typography to animations and responsive design. Includes prompt templates for every pattern."
+tags: ["frontend", "ui", "design", "tutorial"]
+readTime: "11 min read"
+difficulty: "Beginner"
+---
+
+# Building Beautiful UI with AI
+
+AI is remarkably good at generating user interfaces. Give it the right instructions and you'll get polished, responsive layouts that look professionally designed. Give it vague instructions and you'll get generic Bootstrap-looking pages.
+
+This guide teaches you how to prompt for beautiful UI every time.
+
+## The Foundation: Describe the Vibe
+
+Before writing any technical details, tell the AI what the design should *feel* like. AI models understand aesthetic language:
+
+```
+Design a landing page with a dark, minimal aesthetic.
+Think: Apple's product pages meets a developer portfolio.
+Lots of whitespace, subtle gradients, smooth animations.
+Color palette: near-black background (#0a0a0a), white text,
+purple accents (#a855f7).
+```
+
+Compare that to "build a landing page" — the first prompt produces dramatically better results.
+
+### Aesthetic Keywords That Work
+
+| Keyword | Result |
+|---------|--------|
+| **Minimal** | Clean layout, lots of whitespace, few colors |
+| **Glassmorphism** | Frosted glass effects, blurred backgrounds |
+| **Brutalist** | Raw, bold typography, unconventional layouts |
+| **Corporate** | Professional, safe, well-organized grids |
+| **Playful** | Rounded corners, bright colors, bouncy animations |
+| **Editorial** | Magazine-style, strong typography hierarchy |
+| **Dashboard** | Data-dense, sidebar navigation, cards and charts |
+
+## Layout Patterns
+
+### Hero Section
+
+The most important section of any page. Use this template:
+
+```
+Build a hero section with:
+- Full-screen height (100vh)
+- Large headline (text-6xl on desktop, text-4xl on mobile)
+- Subtitle paragraph below (max-w-2xl, text-neutral-400)
+- Two CTA buttons side by side (primary purple, secondary outline)
+- Subtle gradient background (dark to slightly lighter)
+- Fade-in animation on load (stagger the elements)
+
+Use Tailwind CSS. Make it responsive.
+```
+
+### Card Grid
+
+```
+Build a 3-column card grid that:
+- Shows 6 feature cards
+- Each card has: icon (SVG), title, description
+- Cards have a subtle border that glows purple on hover
+- Responsive: 3 columns on desktop, 2 on tablet, 1 on mobile
+- Add a slight scale transform on hover (1.02)
+- Stagger the cards' entrance animation when they scroll into view
+
+Use Tailwind CSS. Dark theme.
+```
+
+### Sidebar Layout
+
+```
+Build a dashboard layout with:
+- Fixed sidebar (240px wide) on the left with navigation links
+- Each nav link has an icon and label
+- Active link highlighted with purple background
+- Main content area takes remaining width
+- Sidebar collapses to icons-only on tablet
+- Sidebar becomes a bottom tab bar on mobile
+- Dark theme with neutral-900 sidebar, neutral-950 content
+```
+
+## Typography
+
+Good typography makes or breaks a design. Be specific:
+
+```
+Use this typography system:
+- Headings: font-bold, tracking-tight, slightly larger than default
+- h1: text-5xl (desktop), text-3xl (mobile)
+- h2: text-3xl (desktop), text-2xl (mobile)
+- h3: text-xl
+- Body text: text-base, text-neutral-300, leading-relaxed (1.75)
+- Small text: text-sm, text-neutral-500
+- Code: font-mono, bg-neutral-800, px-1.5 py-0.5, rounded
+
+Use Inter or the system font stack. No decorative fonts.
+```
+
+## Color Systems
+
+Don't just say "dark theme." Specify your color hierarchy:
+
+```
+Color system:
+- Background: #0a0a0a (main), #171717 (cards), #262626 (inputs)
+- Text: #ffffff (headings), #d4d4d4 (body), #737373 (muted)
+- Primary: #a855f7 (buttons, links, accents)
+- Primary hover: #9333ea (darker purple)
+- Success: #22c55e
+- Error: #ef4444
+- Warning: #f59e0b
+- Borders: rgba(255,255,255,0.1)
+```
+
+This gives the AI a complete palette to work with instead of guessing.
+
+## Animations
+
+### Entrance Animations
+
+```
+Add scroll-triggered entrance animations:
+- Elements fade in and slide up (translateY 30px to 0) when
+  they enter the viewport
+- Stagger children by 100ms each
+- Use Intersection Observer, not scroll event listeners
+- Animation duration: 0.6s with ease-out timing
+- Only animate once (don't re-trigger on scroll back up)
+- Use CSS transitions, not a animation library
+```
+
+### Hover Effects
+
+```
+Add these hover effects to the feature cards:
+- Border color transitions from neutral-800 to purple-500/40
+- Subtle scale transform (1.02)
+- A radial gradient glow follows the cursor position
+- All transitions use duration-300 ease-out
+- On mouse leave, smoothly return to default state
+```
+
+### Loading States
+
+```
+Create a skeleton loading component that:
+- Matches the layout of the actual content (same heights and widths)
+- Uses a shimmer animation (gradient sweep from left to right)
+- Colors: neutral-800 base, neutral-700 shimmer
+- Animation duration: 1.5s, infinite loop
+- Accessible: include aria-label="Loading"
+```
+
+## Responsive Design
+
+Always specify breakpoints in your prompts:
+
+```
+Make this responsive:
+- Mobile (< 640px): Single column, smaller text, stacked buttons
+- Tablet (640-1024px): Two columns, sidebar collapses
+- Desktop (> 1024px): Full layout as designed
+
+Specific changes on mobile:
+- Hero text goes from text-6xl to text-3xl
+- Card grid goes from 3 columns to 1
+- Navigation moves to a hamburger menu
+- Padding reduces from px-12 to px-4
+- Images stack vertically instead of side-by-side
+```
+
+## Common UI Components
+
+### Modal/Dialog
+
+```
+Build a modal component that:
+- Overlays a dark backdrop (bg-black/60, backdrop-blur-sm)
+- Centers a white card (max-w-lg, rounded-2xl)
+- Has a close button (X) in the top right
+- Closes on backdrop click and Escape key
+- Traps focus inside the modal (accessibility)
+- Animates in: fade + scale from 0.95 to 1
+- Animates out: fade + scale to 0.95
+- Includes role="dialog" and aria-modal="true"
+```
+
+### Toast Notifications
+
+```
+Build a toast notification system:
+- Toasts appear in the bottom-right corner
+- Stack vertically with 8px gap
+- Types: success (green), error (red), info (blue)
+- Each toast has: icon, message text, close button
+- Auto-dismiss after 5 seconds
+- Slide in from the right, slide out on dismiss
+- Maximum 3 visible at once (queue the rest)
+```
+
+### Data Table
+
+```
+Build a data table component that:
+- Accepts columns config and rows data
+- Sortable columns (click header to sort)
+- Show sort direction arrow (up/down)
+- Alternating row backgrounds for readability
+- Sticky header on scroll
+- Responsive: horizontal scroll on mobile
+- Include pagination (10/25/50 per page)
+- Dark theme with neutral-900 header, neutral-950 rows
+```
+
+## Accessibility Checklist for UI
+
+After generating any UI component, verify:
+
+- [ ] **Color contrast** — Text meets WCAG AA ratios (use a contrast checker)
+- [ ] **Focus indicators** — Tab through the page; every interactive element should have a visible focus ring
+- [ ] **Alt text** — All meaningful images have descriptive alt text
+- [ ] **Button labels** — Icon-only buttons have `aria-label`
+- [ ] **Heading hierarchy** — h1 → h2 → h3 in order, no skipped levels
+- [ ] **Form labels** — Every input has an associated `<label>` or `aria-label`
+- [ ] **Keyboard navigation** — Modals trap focus, menus are navigable with arrow keys
+
+## The UI Prompt Template
+
+Copy this template and fill in the blanks:
+
+```
+Build a [component type] with:
+
+Visual style:
+- Theme: [dark/light/specific colors]
+- Feel: [minimal/playful/corporate/etc.]
+- Font: [specific font or system fonts]
+
+Layout:
+- [Describe the structure — columns, spacing, alignment]
+- [Responsive behavior for mobile/tablet/desktop]
+
+Content:
+- [What data/text goes in each section]
+- [Icons: use Heroicons/Lucide/SVG]
+
+Interactions:
+- [Hover effects]
+- [Click behavior]
+- [Animations]
+
+Technical:
+- Use [Tailwind CSS / CSS modules / styled-components]
+- Framework: [React / Next.js / HTML]
+- Make it accessible (WCAG AA)
+```
+
+## Next Steps
+
+- Generate a [color palette](/tools/color-palette) for your project
+- Browse the [Prompt Library](/tools/prompt-library) for ready-made UI prompts
+- Read about [deploying](/guides/deploying-your-project) once your UI is ready

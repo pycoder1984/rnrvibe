@@ -1,0 +1,175 @@
+---
+title: "API Development with AI Assistance"
+date: "2026-03-13"
+description: "Learn how to vibecode REST APIs — from route design to database queries to error handling. Includes real prompt templates."
+tags: ["api", "backend", "tutorial"]
+readTime: "10 min read"
+difficulty: "Intermediate"
+---
+
+# API Development with AI Assistance
+
+Building APIs is one of vibecoding's strongest use cases. The patterns are well-established, the code is structured, and AI models excel at generating CRUD endpoints. Here's how to do it well.
+
+## Designing Your API First
+
+Before prompting, sketch your API surface. AI produces much better code when you give it a clear spec to implement.
+
+```
+Resource: /api/projects
+
+GET    /api/projects          - List all projects (paginated)
+GET    /api/projects/:id      - Get single project
+POST   /api/projects          - Create project
+PATCH  /api/projects/:id      - Update project
+DELETE /api/projects/:id      - Delete project
+
+Project shape:
+{
+  id: string (uuid)
+  name: string (required, 1-100 chars)
+  description: string (optional, max 500 chars)
+  status: "active" | "archived" | "draft"
+  createdAt: ISO date
+  updatedAt: ISO date
+}
+```
+
+## Prompt Template: Basic CRUD Route
+
+```
+Create a Next.js API route at app/api/projects/route.ts
+
+GET handler:
+- Accept query params: page (default 1), limit (default 20),
+  status (optional filter)
+- Return paginated results with total count
+- Response: { data: Project[], total: number, page: number }
+
+POST handler:
+- Accept JSON body with name (required) and description (optional)
+- Validate: name must be 1-100 chars, description max 500 chars
+- Return 201 with created project
+- Return 400 with error details if validation fails
+
+Use Prisma for database access. Include proper error handling
+and TypeScript types.
+```
+
+### What Makes This Prompt Effective
+
+1. **Specific file path** — no ambiguity about where the code goes
+2. **Input/output shapes defined** — the AI knows exactly what to produce
+3. **Validation rules stated** — prevents the "happy path only" problem
+4. **Error responses specified** — AI won't skip error handling
+
+## Prompt Template: Dynamic Route
+
+```
+Create app/api/projects/[id]/route.ts
+
+GET handler:
+- Find project by ID parameter
+- Return 404 with { error: "Project not found" } if missing
+- Return project object
+
+PATCH handler:
+- Accept partial updates (any subset of name, description, status)
+- Validate same rules as POST
+- Return 404 if project doesn't exist
+- Return updated project
+
+DELETE handler:
+- Delete project by ID
+- Return 404 if project doesn't exist
+- Return 204 (no content) on success
+
+Use Prisma. Match the types from the projects route.
+```
+
+## Adding Authentication
+
+Once basic CRUD works, layer in auth:
+
+```
+Add authentication to all /api/projects routes:
+
+- Read the session cookie using iron-session
+- If no valid session, return 401 { error: "Unauthorized" }
+- Filter all queries by the authenticated user's ID
+  (users should only see their own projects)
+- Add userId to project creation (from session, not request body)
+
+Don't modify the existing request/response shapes.
+```
+
+### Key Review Point
+
+Always verify that:
+- The auth check happens **before** any database operation
+- User ID comes from the **session**, not the request body (users could fake it)
+- List queries are filtered by user — not returning all projects
+
+## Error Handling Pattern
+
+AI often generates inconsistent error responses. Standardize them:
+
+```
+Create a helper function at lib/api-error.ts:
+
+function apiError(status: number, message: string, details?: any)
+- Returns a NextResponse with the given status code
+- Body: { error: message, details }
+- Content-Type: application/json
+
+Use this in all API routes for consistent error responses.
+```
+
+## Testing Your API
+
+Ask AI to generate test scenarios:
+
+```
+Generate a list of curl commands to test all /api/projects
+endpoints. Include:
+- Successful operations (create, read, update, delete)
+- Validation failures (missing name, name too long)
+- 404 cases (non-existent ID)
+- Auth failures (no session cookie)
+```
+
+This gives you a ready-made test script you can run from the terminal.
+
+## Common API Vibecoding Pitfalls
+
+### Missing Input Sanitization
+
+AI rarely sanitizes inputs by default. After generating your routes, check that:
+- String inputs are trimmed
+- Numbers are parsed and validated
+- Unexpected fields are ignored (don't just spread `req.body` into your database)
+
+### No Rate Limiting
+
+If your API is public, add rate limiting. AI won't add this unless you ask:
+
+```
+Add rate limiting to POST /api/projects:
+- Max 10 requests per minute per IP
+- Return 429 with { error: "Too many requests" } when exceeded
+```
+
+### Inconsistent Status Codes
+
+AI models sometimes return 200 for everything. Verify your routes use:
+- `200` for successful reads and updates
+- `201` for successful creation
+- `204` for successful deletion
+- `400` for validation errors
+- `401` for unauthenticated requests
+- `404` for missing resources
+- `500` for unexpected errors
+
+## Next Steps
+
+Once your API is working, use our [Project Starter](/tools/project-starter) to generate a frontend that consumes it, or our [README Generator](/tools/readme-generator) to document your endpoints.

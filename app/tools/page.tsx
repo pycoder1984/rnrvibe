@@ -1,0 +1,71 @@
+import BlogNav from "@/components/BlogNav";
+import Link from "next/link";
+import Image from "next/image";
+import { tools } from "@/data/tools";
+
+export const metadata = {
+  title: "Free AI Vibecoding Tools — RnR Vibe",
+  description: `${tools.length} free AI-powered vibecoding tools — code review, bug fixer, SQL generator, component generator, API builder, git helper, and more. No sign-up required.`,
+  alternates: { canonical: "https://www.rnrvibe.com/tools" },
+  openGraph: {
+    title: "Free AI Vibecoding Tools — RnR Vibe",
+    description: "Free AI-powered vibecoding tools. No sign-up required.",
+    images: ["/api/og?title=Free%20AI%20Vibecoding%20Tools&type=article"],
+  },
+};
+
+export default function ToolsPage() {
+  return (
+    <div className="relative min-h-screen bg-neutral-950 text-white">
+      {/* Full-page background image */}
+      <Image
+        src="/tools-bg.png"
+        alt=""
+        fill
+        className="fixed inset-0 object-cover opacity-10 pointer-events-none"
+        priority
+      />
+      <div className="fixed inset-0 bg-gradient-to-b from-neutral-950/40 via-neutral-950/80 to-neutral-950 pointer-events-none" />
+
+      <div className="relative z-10">
+      <BlogNav />
+
+      {/* Hero banner */}
+      <div className="relative h-48 sm:h-64 overflow-hidden">
+        <Image
+          src="/tools-bg.png"
+          alt=""
+          fill
+          className="absolute inset-0 object-cover opacity-30"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/30 to-transparent" />
+        <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-6">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Tools</h1>
+          <p className="mt-3 text-neutral-400 max-w-lg">
+            Free AI-powered tools to supercharge your vibecoding workflow. No sign-up required.
+          </p>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-6 py-12">
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {tools.map((tool) => (
+            <Link key={tool.href} href={tool.href} className="group block">
+              <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 transition-all duration-300 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/5 h-full">
+                <div className="mb-4 text-3xl">{tool.icon}</div>
+                <h2 className="text-lg font-semibold tracking-tight text-white transition-colors group-hover:text-purple-400">
+                  {tool.title}
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                  {tool.description}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,186 @@
+---
+title: "State Management for Vibecoders"
+date: "2026-03-21"
+description: "A practical guide to managing state in React apps — from useState to Context to Zustand — with tips on what AI gets wrong."
+tags: ["react", "state", "zustand", "intermediate"]
+readTime: "8 min read"
+difficulty: "Intermediate"
+---
+
+# State Management for Vibecoders
+
+State management is where most AI-generated React apps start to struggle. The code works for simple cases, then becomes a tangled mess as your app grows. Here's how to get it right.
+
+## The State Spectrum
+
+Not all state is equal. Understanding what you're managing determines how you should manage it.
+
+### Local State (useState)
+Data that belongs to a single component:
+- Form input values
+- Toggle/accordion open/closed
+- Hover state
+- Loading state for a specific button
+
+```typescript
+const [email, setEmail] = useState("");
+const [isOpen, setIsOpen] = useState(false);
+```
+
+**Rule:** If only one component needs this data, use `useState`. Don't overcomplicate it.
+
+### Shared State (Context or Zustand)
+Data that multiple components need:
+- Current user / auth session
+- Theme preference
+- Shopping cart contents
+- Notification count
+
+### Server State (fetch / SWR / React Query)
+Data that lives on a server:
+- API responses
+- Database records
+- External service data
+
+This is the category AI handles worst. It generates `useEffect` + `fetch` patterns that work but don't handle caching, revalidation, or optimistic updates.
+
+## What AI Gets Wrong
+
+### Problem 1: State in the Wrong Place
+
+AI often puts state at the component level when it should be lifted up, or at the global level when it should be local.
+
+```typescript
+// AI often generates this — global state for a search input
+const useStore = create((set) => ({
+  searchQuery: "",
+  setSearchQuery: (q) => set({ searchQuery: q }),
+}));
+
+// Better — this is local state
+const [searchQuery, setSearchQuery] = useState("");
+```
+
+**Rule of thumb:** Start local. Lift state up only when a sibling or parent component needs it.
+
+### Problem 2: Unnecessary Re-renders
+
+AI-generated code often causes entire component trees to re-render on every state change:
+
+```typescript
+// BAD — every component that uses this context re-renders
+// when ANY value changes
+const AppContext = createContext({
+  user: null,
+  theme: "dark",
+  notifications: [],
+  cart: [],
+});
+```
+
+Better: Split contexts by update frequency:
+
+```typescript
+const UserContext = createContext(null);
+const ThemeContext = createContext("dark");
+const CartContext = createContext([]);
+```
+
+### Problem 3: Missing Loading/Error States
+
+AI generates the happy path. Real apps need:
+
+```typescript
+const [data, setData] = useState(null);
+const [loading, setLoading] = useState(true);  // AI often forgets this
+const [error, setError] = useState(null);       // And this
+```
+
+## When to Use What
+
+### useState — Start Here
+
+For 80% of state in a typical app. Use it whenever:
+- State is used by one component
+- State is simple (string, number, boolean, small object)
+- State changes are straightforward
+
+### useReducer — Complex Local State
+
+When your state updates involve multiple related values:
+
+```typescript
+type State = { items: Item[]; total: number; discount: number };
+type Action =
+  | { type: "ADD_ITEM"; item: Item }
+  | { type: "REMOVE_ITEM"; id: string }
+  | { type: "APPLY_DISCOUNT"; code: string };
+
+function cartReducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "ADD_ITEM":
+      const items = [...state.items, action.item];
+      return { ...state, items, total: items.reduce((s, i) => s + i.price, 0) };
+    // ...
+  }
+}
+```
+
+### React Context — Auth, Theme, and Small Shared State
+
+Good for:
+- User session (changes rarely)
+- Theme preference (changes rarely)
+- Feature flags (changes never during a session)
+
+Bad for:
+- Frequently updating data (cart in a high-interaction store)
+- Large data sets (causes expensive re-renders)
+
+### Zustand — The Sweet Spot for App State
+
+Zustand is our recommendation for state that doesn't fit in useState or Context:
+
+```typescript
+import { create } from "zustand";
+
+interface CartStore {
+  items: CartItem[];
+  addItem: (item: CartItem) => void;
+  removeItem: (id: string) => void;
+  total: () => number;
+}
+
+const useCartStore = create<CartStore>((set, get) => ({
+  items: [],
+  addItem: (item) => set((s) => ({ items: [...s.items, item] })),
+  removeItem: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+  total: () => get().items.reduce((s, i) => s + i.price * i.quantity, 0),
+}));
+```
+
+Why Zustand over Redux:
+- No boilerplate (no actions, reducers, dispatch)
+- Works outside React components
+- Built-in selectors for performance
+- TypeScript support is excellent
+
+## Prompting Tips for State
+
+When asking AI to manage state, be explicit:
+
+> "Create a shopping cart using Zustand. The store should hold cart items (id, name, price, quantity). Include actions for add, remove, update quantity, and clear cart. Include a computed total. Use TypeScript."
+
+Without this specificity, AI will default to `useState` with prop drilling, which breaks down at scale.
+
+## The Migration Path
+
+As your app grows:
+
+1. **Start with useState** everywhere
+2. **Lift state up** when siblings need the same data
+3. **Add Context** for truly global, rarely-changing state (auth, theme)
+4. **Add Zustand** when Context causes performance issues or the state logic gets complex
+5. **Never** add Redux unless you have a specific reason (you probably don't)
+
+Keep it simple. The best state management is the least state management.

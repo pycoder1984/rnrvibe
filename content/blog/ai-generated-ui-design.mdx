@@ -1,0 +1,104 @@
+---
+title: "Designing Better UIs with AI: Beyond 'Make It Pretty'"
+date: "2026-03-12"
+description: "How to prompt AI for genuinely good UI design — not just functional layouts, but interfaces that feel polished and professional."
+tags: ["design", "ui", "tailwind", "tips"]
+readTime: "6 min read"
+---
+
+# Designing Better UIs with AI: Beyond "Make It Pretty"
+
+AI can generate a working UI in seconds. But "working" and "well-designed" are different things. Here's how to prompt for UIs that actually look good.
+
+## Why AI UIs Look Generic
+
+Most AI-generated interfaces share the same problems:
+
+- **Everything looks the same.** Gray backgrounds, rounded corners, blue buttons. Functional, but forgettable.
+- **Spacing is inconsistent.** Padding and margins feel random because the AI doesn't have a spacing system.
+- **Hierarchy is flat.** Every element gets the same visual weight, so nothing stands out.
+- **States are missing.** No hover effects, no loading states, no empty states, no error states.
+
+These aren't hard to fix — you just need to ask for them.
+
+## The Specific Prompt Framework
+
+Instead of "make a dashboard," try this structure:
+
+### 1. Describe the Layout
+
+> "Two-column layout: narrow sidebar on the left (240px, fixed), main content area on the right. Sidebar has navigation links with icons. Main area has a header bar and a card grid below."
+
+### 2. Specify the Visual System
+
+> "Use a dark theme with neutral-950 background. Purple-400 as the accent color. 4px border radius on small elements, 12px on cards. Use 4/8/12/16/24px spacing increments only."
+
+### 3. Call Out States
+
+> "Include: hover states on all interactive elements, active/selected state on nav links, loading skeleton for cards, empty state when no data exists."
+
+### 4. Reference Specifics
+
+> "The sidebar should feel like Linear's sidebar. Cards should have a subtle border that glows purple on hover, like Vercel's dashboard."
+
+Referencing real products gives AI a concrete target instead of guessing.
+
+## Five Design Principles for AI Prompts
+
+### 1. Contrast Creates Hierarchy
+
+Tell AI what's important:
+
+> "The main metric number should be 48px bold white. The label below should be 14px neutral-400. The supporting stats should be smaller and lighter."
+
+Without explicit hierarchy, AI makes everything the same size.
+
+### 2. Whitespace Is a Feature
+
+> "Use generous padding — at least 24px inside cards, 32px between sections. The layout should feel spacious, not cramped."
+
+AI tends to pack elements tightly. Explicitly requesting whitespace improves every design.
+
+### 3. Limit Your Palette
+
+> "Only use these colors: neutral-950 (background), neutral-900 (cards), neutral-800 (borders), neutral-400 (secondary text), white (primary text), purple-400 (accent), green-400 (success), red-400 (error)."
+
+A constrained palette prevents the rainbow effect of AI using a different color for every element.
+
+### 4. Animation Should Be Subtle
+
+> "Add transition-all duration-200 to interactive elements. No bouncing, no spinning, no confetti. Hover effects should be a subtle border color change and slight shadow."
+
+AI loves dramatic animations. Constrain them or your UI will feel like a theme park.
+
+### 5. Mobile First, Always
+
+> "Design for mobile first. On mobile, the sidebar becomes a hamburger menu. The card grid goes to single column. Touch targets should be at least 44px."
+
+If you don't specify mobile behavior, AI ignores it entirely.
+
+## Quick Wins for Any AI-Generated UI
+
+If you already have an AI-generated UI and want to improve it:
+
+1. **Increase padding by 50%.** Almost every AI UI is too cramped.
+2. **Reduce font sizes by one step.** AI tends to make text too large.
+3. **Add hover states** to every button and link.
+4. **Add a consistent border radius.** Pick one size (8px or 12px) and use it everywhere.
+5. **Reduce color variety.** Pick two colors (background + accent) and remove the rest.
+6. **Add loading skeletons** — use our [Component Generator](/tools/component-generator) to create them.
+
+## The Design Review
+
+After AI generates your UI, check:
+
+- [ ] Is there a clear visual hierarchy? (What do you see first?)
+- [ ] Is spacing consistent? (Same padding inside similar elements?)
+- [ ] Do interactive elements have hover/active/focus states?
+- [ ] Does it work on mobile? (Resize your browser to 375px width)
+- [ ] Is text readable? (14px minimum for body text, 4.5:1 contrast ratio)
+- [ ] Are there empty states? (What shows when there's no data?)
+
+Use our [Accessibility Checker](/tools/accessibility-checker) and [Color Contrast Checker](/projects/contrast-checker) to verify the last point.
+
+Good design isn't subjective magic — it's specific, testable decisions. Tell AI exactly what those decisions are, and the output will look professional.

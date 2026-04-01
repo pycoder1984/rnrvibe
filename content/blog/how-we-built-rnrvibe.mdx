@@ -1,0 +1,67 @@
+---
+title: "How We Built RnR Vibe With Vibecoding"
+date: "2026-03-24"
+description: "A behind-the-scenes look at building a full vibecoding platform using AI-assisted development — the actual prompts, process, and lessons."
+tags: ["case-study", "vibecoding", "behind-the-scenes"]
+readTime: "8 min read"
+---
+
+# How We Built RnR Vibe With Vibecoding
+
+RnR Vibe is a platform about vibecoding, built with vibecoding. That's not just marketing — it's the actual development story. Here's how we went from an idea to a live platform with 24 tools, 15 demo projects, and a full content library.
+
+## The Starting Point
+
+The goal was simple: create a free, no-sign-up platform for developers learning to code with AI. We wanted tools, guides, and projects — all in one place.
+
+The tech stack decision came first:
+- **Next.js** for full-stack capability with great SEO
+- **Tailwind CSS** for rapid UI development
+- **Ollama** for local LLM inference (no API costs, full privacy)
+- **MDX** for content that lives alongside code
+
+## The Process: Prompt, Review, Refine
+
+Building with AI isn't "type a prompt and ship it." Our actual workflow looked like this:
+
+1. **Describe the feature** in detail — what it does, how it looks, edge cases to handle
+2. **Review the output** line by line — AI gets you 80% there, but the last 20% matters
+3. **Refine iteratively** — fix bugs, improve UX, tighten security
+4. **Test manually** — every tool, every edge case, every mobile breakpoint
+
+## What Worked Well
+
+**Component generation was fast.** Describing a UI component and getting a working React + Tailwind implementation in seconds is genuinely transformative. The tool pages, blog layouts, and navigation components all started as AI-generated code.
+
+**Content creation accelerated.** Blog outlines, guide structures, and even initial drafts came from AI prompts — but every word was reviewed and rewritten to match our voice.
+
+**Boilerplate elimination.** API routes, metadata configurations, sitemap generation — the repetitive plumbing code that usually takes hours was generated in minutes.
+
+## What Needed Human Judgment
+
+**Security couldn't be vibecoded blindly.** Our guardrails system — prompt injection detection, output filtering, rate limiting — required careful manual design. AI can write the code, but understanding the threat model requires human expertise.
+
+**Architecture decisions.** When to use server components vs. client components, how to structure the content system, where to put the rate limiter — these decisions need context that AI doesn't have about your specific constraints.
+
+**UX polish.** The difference between a demo and a product is in the details: loading states, error messages, mobile responsiveness, accessibility. AI gets the structure right, but the craft requires human eyes.
+
+## Lessons for Your Projects
+
+1. **Start with structure, not features.** Get your layout, routing, and data model right before adding complexity.
+2. **Review everything.** AI-generated code works, but it doesn't always follow best practices. Read what you ship.
+3. **Security is not optional.** If your app takes user input and talks to an LLM, you need guardrails. Period.
+4. **Iterate publicly.** We shipped early and improved continuously. Don't wait for perfect.
+5. **Use AI for what it's good at** — generating boilerplate, exploring options, accelerating implementation — and use your brain for what it's good at: judgment, taste, and architecture.
+
+## The Numbers
+
+- **24 AI-powered tools** — each with its own system prompt and safety rules
+- **15 interactive demo projects** — all built with vibecoding
+- **23+ articles** — blog posts and guides covering every aspect of AI-assisted development
+- **Zero external API dependencies** — everything runs on a local LLM
+
+## What's Next
+
+We're continuously adding new tools, projects, and content. The platform itself is a living example of what's possible when you combine AI capability with human judgment.
+
+The best way to learn vibecoding is to start building. Pick a tool, try a project, read a guide — and ship something today.

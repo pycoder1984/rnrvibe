@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Prose styles for blog/guide content */
+.prose {
+  max-width: 720px;
+  line-height: 1.8;
+}
+
+.prose h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  letter-spacing: -0.025em;
+  color: #fff;
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+  color: #e5e5e5;
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+.prose p {
+  margin-bottom: 1.25rem;
+  color: #d4d4d4;
+}
+
+.prose ul, .prose ol {
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+  color: #d4d4d4;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #e5e5e5;
+}
+
+.prose code {
+  background: #262626;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.prose pre {
+  background: #171717;
+  color: #d4d4d4;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #262626;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.prose blockquote {
+  border-left: 3px solid #a855f7;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: #737373;
+}
+
+.prose a {
+  color: #c084fc;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: #d8b4fe;
+}
+
+/* Hero animations */
+.hero-badge {
+  animation: fadeInDown 0.8s ease-out 0.2s both;
+}
+
+.hero-title {
+  animation: fadeInDown 0.8s ease-out 0.4s both;
+}
+
+.hero-subtitle {
+  animation: fadeInDown 0.8s ease-out 0.6s both;
+}
+
+.hero-cta {
+  animation: fadeInDown 0.8s ease-out 0.8s both;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Section reveal on scroll */
+.section-reveal {
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.section-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger children when section is revealed */
+.section-reveal.revealed > div > div > *,
+.section-reveal.revealed > div > .grid > * {
+  animation: staggerIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.section-reveal.revealed > div > div > *:nth-child(1),
+.section-reveal.revealed > div > .grid > *:nth-child(1) { animation-delay: 0.1s; }
+.section-reveal.revealed > div > div > *:nth-child(2),
+.section-reveal.revealed > div > .grid > *:nth-child(2) { animation-delay: 0.2s; }
+.section-reveal.revealed > div > div > *:nth-child(3),
+.section-reveal.revealed > div > .grid > *:nth-child(3) { animation-delay: 0.3s; }
+.section-reveal.revealed > div > div > *:nth-child(4),
+.section-reveal.revealed > div > .grid > *:nth-child(4) { animation-delay: 0.4s; }
+.section-reveal.revealed > div > div > *:nth-child(5),
+.section-reveal.revealed > div > .grid > *:nth-child(5) { animation-delay: 0.5s; }
+.section-reveal.revealed > div > div > *:nth-child(6),
+.section-reveal.revealed > div > .grid > *:nth-child(6) { animation-delay: 0.6s; }
+.section-reveal.revealed > div > div > *:nth-child(7),
+.section-reveal.revealed > div > .grid > *:nth-child(7) { animation-delay: 0.7s; }
+.section-reveal.revealed > div > div > *:nth-child(8),
+.section-reveal.revealed > div > .grid > *:nth-child(8) { animation-delay: 0.8s; }
+.section-reveal.revealed > div > div > *:nth-child(9),
+.section-reveal.revealed > div > .grid > *:nth-child(9) { animation-delay: 0.9s; }
+.section-reveal.revealed > div > div > *:nth-child(n+10),
+.section-reveal.revealed > div > .grid > *:nth-child(n+10) { animation-delay: 1s; }
+
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Glowing button pulse */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.4); }
+}
+
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Syntax highlighting for code blocks in prose */
+.prose pre {
+  position: relative;
+}
+
+.prose pre .keyword { color: #c084fc; }
+.prose pre .string { color: #34d399; }
+.prose pre .comment { color: #737373; font-style: italic; }
+.prose pre .number { color: #f59e0b; }
+.prose pre .function { color: #60a5fa; }
+.prose pre .operator { color: #f472b6; }
+
+/* Prose image styling */
+.prose img {
+  border-radius: 0.75rem;
+  border: 1px solid #262626;
+  margin: 1.5rem 0;
+}
+
+/* Prose table styling */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
+}
+
+.prose th {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 2px solid #262626;
+  color: #e5e5e5;
+  font-weight: 600;
+}
+
+.prose td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #1f1f1f;
+  color: #d4d4d4;
+}
+
+.prose tr:hover td {
+  background: #171717;
+}
+
+/* Horizontal rule */
+.prose hr {
+  border: none;
+  border-top: 1px solid #262626;
+  margin: 2rem 0;
+}
