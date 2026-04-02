@@ -162,4 +162,10 @@ export const tools: Tool[] = [
     description: "Describe your brand and get professional logo concepts \u2014 powered by local AI.",
     icon: "\u270F\uFE0F",
   },
+  {
+    href: "/tools/image-studio",
+    title: "AI Image Studio",
+    description: "Upscale, restyle, inpaint, and caption images with local Stable Diffusion \u2014 no cloud needed.",
+    icon: "\u2728",
+  },
 ];

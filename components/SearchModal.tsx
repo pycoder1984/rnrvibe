@@ -37,6 +37,7 @@ const staticResults: SearchResult[] = [
   { title: "Schema Validator", description: "JSON Schema generation and validation", href: "/tools/schema-validator", type: "tool" },
   { title: "AI Image Generator", description: "Generate images with local Stable Diffusion", href: "/tools/image-generator", type: "tool" },
   { title: "AI Logo Generator", description: "Generate logo concepts from brand descriptions", href: "/tools/logo-generator", type: "tool" },
+  { title: "AI Image Studio", description: "Upscale, restyle, inpaint, and caption images", href: "/tools/image-studio", type: "tool" },
   // Projects
   { title: "USD to INR Rate Tracker", description: "Real-time exchange rate comparison", href: "/projects/exchange-rate-tracker", type: "project" },
   { title: "Pomodoro Timer", description: "25/5 focus timer with session tracking", href: "/projects/pomodoro-timer", type: "project" },
