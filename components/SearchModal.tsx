@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -63,7 +64,7 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
   const fetchIndex = useCallback(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
-    fetch("/api/search-index")
+    fetch(`${API_BASE}/api/search-index`)
       .then((r) => r.json())
       .then((data) => setDynamicResults(data))
       .catch(() => {

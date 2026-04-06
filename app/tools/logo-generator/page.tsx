@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef } from "react";
@@ -104,7 +105,7 @@ export default function LogoGeneratorPage() {
     abortRef.current = new AbortController();
 
     try {
-      const res = await fetch("/api/generate-logo", {
+      const res = await fetch(`${API_BASE}/api/generate-logo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

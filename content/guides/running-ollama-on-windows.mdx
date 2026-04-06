@@ -1,0 +1,242 @@
+---
+title: "Running Ollama on Windows: Complete Setup Guide"
+date: "2026-04-01"
+description: "Step-by-step guide to installing and running Ollama on Windows — from download to building your first AI-powered app."
+tags: ["ollama", "windows", "local-ai", "setup"]
+readTime: "10 min read"
+difficulty: "Beginner"
+---
+
+# Running Ollama on Windows: Complete Setup Guide
+
+This guide walks you through setting up Ollama on Windows from scratch. By the end, you'll have a local LLM running and know how to integrate it into your projects.
+
+## Prerequisites
+
+- Windows 10 or 11
+- At least 8 GB of RAM (16 GB recommended)
+- 10 GB of free disk space
+- A GPU is optional but speeds things up significantly
+
+## Step 1: Install Ollama
+
+Download the Windows installer from [ollama.com](https://ollama.com). Run the installer — it takes about a minute.
+
+After installation, Ollama runs as a background service. You'll see it in your system tray.
+
+Verify it's working by opening a terminal:
+
+```bash
+ollama --version
+```
+
+## Step 2: Pull Your First Model
+
+Models are downloaded with a single command. Start with something small:
+
+```bash
+# Small and fast — great for getting started
+ollama pull gemma3:4b
+```
+
+This downloads about 3 GB. Once done, test it:
+
+```bash
+ollama run gemma3:4b
+```
+
+You're now chatting with a local AI. Type `/bye` to exit.
+
+## Step 3: Choose the Right Model
+
+Different models excel at different tasks:
+
+### For General Coding
+```bash
+ollama pull gemma3:4b          # 4 GB — fast, good quality
+ollama pull llama3.1:8b        # 6 GB — more capable
+```
+
+### For Code-Specific Tasks
+```bash
+ollama pull qwen2.5-coder:7b   # 6 GB — built for code
+ollama pull codellama:7b        # 5 GB — Meta's code model
+```
+
+### For Creative Writing / Chat
+```bash
+ollama pull mistral:7b          # 5 GB — excellent for conversation
+```
+
+## Step 4: Use the API
+
+Ollama automatically starts an API server at `http://localhost:11434`. This is how you integrate it into apps.
+
+### Basic Generation
+
+```bash
+curl http://localhost:11434/api/generate -d "{
+  \"model\": \"gemma3:4b\",
+  \"prompt\": \"Write a Python function to reverse a string\",
+  \"stream\": false
+}"
+```
+
+### Chat Conversation
+
+```bash
+curl http://localhost:11434/api/chat -d "{
+  \"model\": \"gemma3:4b\",
+  \"messages\": [
+    {\"role\": \"system\", \"content\": \"You are a helpful coding assistant.\"},
+    {\"role\": \"user\", \"content\": \"How do I read a file in Node.js?\"}
+  ],
+  \"stream\": false
+}"
+```
+
+### Streaming Responses
+
+For real-time output, set `stream: true` (the default). Each token arrives as a separate JSON line:
+
+```bash
+curl http://localhost:11434/api/generate -d "{
+  \"model\": \"gemma3:4b\",
+  \"prompt\": \"Explain async/await in JavaScript\"
+}"
+```
+
+## Step 5: Integrate with Your App
+
+### Node.js / Next.js
+
+```typescript
+async function askOllama(prompt: string): Promise<string> {
+  const res = await fetch("http://localhost:11434/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gemma3:4b",
+      prompt,
+      stream: false,
+    }),
+  });
+
+  const data = await res.json();
+  return data.response;
+}
+
+// Usage
+const answer = await askOllama("Write a regex to validate email addresses");
+console.log(answer);
+```
+
+### Python
+
+```python
+import requests
+
+def ask_ollama(prompt: str) -> str:
+    response = requests.post("http://localhost:11434/api/generate", json={
+        "model": "gemma3:4b",
+        "prompt": prompt,
+        "stream": False,
+    })
+    return response.json()["response"]
+
+answer = ask_ollama("Write a Python class for a linked list")
+print(answer)
+```
+
+## Step 6: Manage Models
+
+```bash
+# List installed models
+ollama list
+
+# Get model info
+ollama show gemma3:4b
+
+# Remove a model you don't need
+ollama rm codellama:7b
+
+# Update a model to latest version
+ollama pull gemma3:4b
+```
+
+## Step 7: Optimize Performance
+
+### Use Your GPU
+
+Ollama automatically uses your NVIDIA GPU if CUDA is available. Verify with:
+
+```bash
+nvidia-smi
+```
+
+If you see your GPU listed, Ollama is already using it.
+
+### Adjust Context Window
+
+For longer conversations or larger code files:
+
+```bash
+# In the API, set num_ctx
+curl http://localhost:11434/api/generate -d "{
+  \"model\": \"gemma3:4b\",
+  \"prompt\": \"...\",
+  \"options\": { \"num_ctx\": 8192 }
+}"
+```
+
+### Run on Startup
+
+Ollama's Windows installer adds it to startup automatically. If you disabled this:
+
+1. Press `Win + R`, type `shell:startup`
+2. Add a shortcut to `C:\Users\<you>\AppData\Local\Programs\Ollama\ollama.exe`
+
+## Troubleshooting
+
+### "Ollama is not running"
+
+Open Task Manager and check if `ollama.exe` is in the process list. If not:
+
+```bash
+ollama serve
+```
+
+### Slow Performance
+
+- Close other GPU-intensive applications
+- Use a smaller model (gemma3:4b instead of llama3.1:8b)
+- Ensure you're not running out of RAM (check Task Manager)
+
+### Out of Memory
+
+If a model fails to load, it's too large for your hardware. Try a smaller quantization:
+
+```bash
+# Instead of the full model
+ollama pull llama3.1:8b-instruct-q4_K_M
+# The q4 suffix means 4-bit quantization — uses less RAM
+```
+
+### Port Conflict
+
+If port 11434 is already in use:
+
+```bash
+# Set a different port
+set OLLAMA_HOST=127.0.0.1:11435
+ollama serve
+```
+
+## What's Next?
+
+Now that Ollama is running, try building something with it:
+
+- Use our [AI Chat](/tools/chat) tool to see what local LLMs can do
+- Read about [the best models for coding](/blog/best-local-llm-models-for-coding)
+- Check out our guide on [building AI tools into a Next.js app](/guides/building-ai-nextjs-app)
+- Explore all the [AI-powered tools](/tools) on RnR Vibe — they all run on Ollama

@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef, useEffect } from "react";
@@ -40,7 +41,7 @@ export default function ChatPage() {
         .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
         .join("\n\n");
 
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

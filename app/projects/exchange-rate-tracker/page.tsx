@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useEffect } from "react";
@@ -52,7 +53,7 @@ export default function ExchangeRateTrackerPage() {
 
   const fetchRates = async () => {
     try {
-      const res = await fetch("/api/exchange-rate");
+      const res = await fetch(`${API_BASE}/api/exchange-rate`);
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       setData(json);

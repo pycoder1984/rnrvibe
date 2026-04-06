@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import { useState, useEffect, useCallback } from "react";
 
@@ -48,7 +49,7 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/dashboard");
+      const res = await fetch(`${API_BASE}/api/dashboard`);
       if (res.status === 403) {
         setError("Access denied — dashboard is only available on localhost");
         setLoading(false);
@@ -74,7 +75,7 @@ export default function DashboardPage() {
 
   const clearLogs = async () => {
     if (!confirm("Clear all logs?")) return;
-    await fetch("/api/dashboard", { method: "DELETE" });
+    await fetch(`${API_BASE}/api/dashboard`, { method: "DELETE" });
     fetchData();
   };
 

@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState } from "react";
@@ -17,7 +18,7 @@ export default function ReadmeGeneratorPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

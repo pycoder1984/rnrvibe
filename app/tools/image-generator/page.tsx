@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -50,7 +51,7 @@ export default function ImageGeneratorPage() {
     setModelsLoading(true);
     setModelsError("");
     try {
-      const res = await fetch("/api/sd-models", { signal: AbortSignal.timeout(15000) });
+      const res = await fetch(`${API_BASE}/api/sd-models`, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Connection failed" }));
         setModelsError(data.error || `Failed to fetch models (${res.status})`);
@@ -98,7 +99,7 @@ export default function ImageGeneratorPage() {
     abortRef.current = new AbortController();
 
     try {
-      const res = await fetch("/api/generate-image", {
+      const res = await fetch(`${API_BASE}/api/generate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

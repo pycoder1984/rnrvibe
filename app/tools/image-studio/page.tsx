@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -269,7 +270,7 @@ export default function ImageStudioPage() {
 
   // Fetch upscalers on mount
   useEffect(() => {
-    fetch("/api/image-studio")
+    fetch(`${API_BASE}/api/image-studio`)
       .then((r) => r.json())
       .then((d) => { if (d.upscalers) setUpscalers(d.upscalers); })
       .catch(() => {});
@@ -297,7 +298,7 @@ export default function ImageStudioPage() {
     setResult("");
     setCaption("");
     try {
-      const res = await fetch("/api/image-studio", {
+      const res = await fetch(`${API_BASE}/api/image-studio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

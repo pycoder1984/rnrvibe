@@ -1,0 +1,208 @@
+---
+title: "Self-Hosting AI Tools: Build Your Own AI-Powered Platform"
+date: "2026-03-28"
+description: "How we built RnR Vibe — a full AI platform running on a single laptop with Ollama, Stable Diffusion, and Next.js. No cloud bills."
+tags: ["self-hosting", "local-ai", "nextjs", "tutorial"]
+readTime: "9 min read"
+---
+
+# Self-Hosting AI Tools: Build Your Own AI-Powered Platform
+
+RnR Vibe runs 25+ AI-powered tools on a single laptop. No cloud API bills, no external dependencies, no monthly costs. Here's the architecture and how you can build something similar.
+
+## The Stack
+
+- **Frontend & API:** Next.js 16 (App Router)
+- **LLM:** Ollama with Gemma 3 4B
+- **Image Generation:** Stable Diffusion (AUTOMATIC1111)
+- **Hosting:** Vercel (static) + Cloudflare Tunnel (AI services)
+- **Total monthly cost:** $0
+
+## Architecture Overview
+
+```
+Browser → Vercel (static pages, serverless API routes)
+            ↓
+       Cloudflare Tunnel
+            ↓
+     Local Machine
+     ├── Ollama (port 11434) — LLM inference
+     └── Stable Diffusion (port 7860) — Image generation
+```
+
+Static pages and the Next.js framework run on Vercel for free. When a user triggers an AI feature, the API route reaches back through a Cloudflare Tunnel to the local machine where the models actually run.
+
+## Step 1: Set Up Your AI Backend
+
+### Ollama for Text
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull your coding model
+ollama pull gemma3:4b
+
+# Verify it's running
+curl http://localhost:11434/api/tags
+```
+
+### Stable Diffusion for Images
+
+```bash
+git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+cd stable-diffusion-webui
+# Edit webui-user.bat: set COMMANDLINE_ARGS=--api --xformers
+./webui-user.bat
+```
+
+## Step 2: Build API Routes
+
+The key pattern: your Next.js API routes act as a bridge between the frontend and local AI services.
+
+```typescript
+// app/api/chat/route.ts
+export async function POST(req: Request) {
+  const { messages, systemPrompt } = await req.json();
+
+  const response = await fetch("http://localhost:11434/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gemma3:4b",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+      stream: true,
+    }),
+  });
+
+  // Stream the response back to the client
+  return new Response(response.body, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+```
+
+For image generation, the same pattern applies — proxy requests to Stable Diffusion's API.
+
+## Step 3: Server-Sent Events for Streaming
+
+Long-running AI operations need streaming. SSE (Server-Sent Events) is simpler than WebSockets and works well for unidirectional data.
+
+```typescript
+// Server side
+const encoder = new TextEncoder();
+const stream = new ReadableStream({
+  async start(controller) {
+    controller.enqueue(encoder.encode("event: status\ndata: {\"message\":\"Generating...\"}\n\n"));
+
+    // Do the AI work
+    const result = await generateImage(prompt);
+
+    controller.enqueue(encoder.encode(`event: image\ndata: ${JSON.stringify(result)}\n\n`));
+    controller.enqueue(encoder.encode("event: done\ndata: {}\n\n"));
+    controller.close();
+  },
+});
+
+return new Response(stream, {
+  headers: {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  },
+});
+```
+
+**Critical tip:** Set `compress: false` in your `next.config.ts` to prevent gzip from buffering SSE events in production.
+
+## Step 4: Expose with Cloudflare Tunnel
+
+Cloudflare Tunnel lets your local machine serve traffic without port forwarding or a static IP.
+
+```bash
+# Install cloudflared
+# Create a tunnel
+cloudflared tunnel create my-tunnel
+
+# Configure routes
+# ~/.cloudflared/config.yml
+tunnel: <tunnel-id>
+ingress:
+  - hostname: mysite.com
+    service: http://localhost:3000
+  - hostname: llm.mysite.com
+    service: http://localhost:11434
+  - service: http_status:404
+```
+
+```bash
+# Run the tunnel
+cloudflared tunnel run my-tunnel
+```
+
+## Step 5: Deploy Static to Vercel
+
+Push your Next.js project to GitHub and connect it to Vercel. The static pages and serverless functions deploy automatically. AI-dependent API routes reach back to your machine through the tunnel.
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
+```
+
+## Handling Downtime
+
+Since AI features depend on your local machine being on, you need a graceful fallback:
+
+```typescript
+// Check if AI backend is available
+try {
+  const ping = await fetch("http://localhost:11434/api/tags", {
+    signal: AbortSignal.timeout(3000),
+  });
+  if (!ping.ok) throw new Error();
+} catch {
+  return Response.json(
+    { error: "AI services are currently offline. They run on local hardware and will be back soon." },
+    { status: 503 }
+  );
+}
+```
+
+Non-AI pages (blog posts, guides, static tools) remain available 24/7 through Vercel.
+
+## What We Learned
+
+**Things that worked well:**
+- Ollama's API is dead simple to integrate
+- Cloudflare Tunnel is rock solid and free
+- SSE streaming gives users real-time progress feedback
+- Vercel's free tier handles static + serverless perfectly
+
+**Things that bit us:**
+- Next.js production gzip buffering breaks SSE streams (fix: `compress: false`)
+- Stable Diffusion's `--nowebui` flag doesn't work reliably — just use `--api`
+- Large base64 images split across SSE chunks need careful parsing
+- Model switching in SD takes 15-30 seconds — check if the model is already loaded first
+
+## Cost Breakdown
+
+| Component | Monthly Cost |
+|-----------|-------------|
+| Vercel hosting | $0 (free tier) |
+| Cloudflare Tunnel | $0 (free) |
+| Ollama | $0 (runs locally) |
+| Stable Diffusion | $0 (runs locally) |
+| Domain name | ~$1/month |
+| **Total** | **~$1/month** |
+
+Compare this to cloud APIs: at even moderate usage, you'd spend $50-200/month on OpenAI + Midjourney/DALL-E.
+
+## Start Building
+
+You don't need a data center to run AI tools. A decent laptop, some free software, and a weekend of setup gives you a platform that rivals paid services. Every tool on [RnR Vibe](/tools) is proof that this approach works.

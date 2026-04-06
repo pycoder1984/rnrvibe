@@ -1,4 +1,5 @@
 "use client";
+import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState } from "react";
@@ -21,7 +22,7 @@ export default function BugFixerPage() {
         ? `Fix this code:\n\n\`\`\`\n${code}\n\`\`\`\n\nError message:\n\`\`\`\n${errorMsg}\n\`\`\``
         : `Fix this code (find and fix any bugs):\n\n\`\`\`\n${code}\n\`\`\``;
 
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tool: "bug-fixer", prompt, stream: true }),

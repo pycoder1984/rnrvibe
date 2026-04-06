@@ -1,0 +1,297 @@
+---
+title: "Setting Up Local Stable Diffusion for App Integration"
+date: "2026-03-31"
+description: "Install and configure Stable Diffusion with AUTOMATIC1111 for API access — then connect it to your web app for image generation, upscaling, and more."
+tags: ["stable-diffusion", "setup", "api", "image-generation"]
+readTime: "10 min read"
+difficulty: "Intermediate"
+---
+
+# Setting Up Local Stable Diffusion for App Integration
+
+This guide covers installing Stable Diffusion with AUTOMATIC1111's WebUI, enabling the API, downloading models, and integrating it with your web application.
+
+## Step 1: Install Prerequisites
+
+### Windows
+
+1. **Python 3.10.x** — Download from [python.org](https://python.org). Check "Add to PATH" during install.
+2. **Git** — Download from [git-scm.com](https://git-scm.com).
+3. **NVIDIA drivers** — Update to the latest version from [nvidia.com](https://nvidia.com/drivers).
+
+Verify installations:
+
+```bash
+python --version   # Should show 3.10.x
+git --version      # Should show 2.x+
+nvidia-smi         # Should show your GPU
+```
+
+### Linux
+
+```bash
+sudo apt install python3.10 python3.10-venv git
+# NVIDIA drivers: follow your distro's guide
+```
+
+## Step 2: Install AUTOMATIC1111
+
+```bash
+git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+cd stable-diffusion-webui
+```
+
+### Enable the API
+
+Edit `webui-user.bat` (Windows) or `webui-user.sh` (Linux):
+
+```bash
+# Windows (webui-user.bat)
+set COMMANDLINE_ARGS=--api --xformers
+
+# Linux (webui-user.sh)
+export COMMANDLINE_ARGS="--api --xformers"
+```
+
+The `--api` flag exposes REST endpoints. The `--xformers` flag speeds up generation.
+
+### First Run
+
+```bash
+# Windows
+webui-user.bat
+
+# Linux
+./webui.sh
+```
+
+The first run downloads the base model and all dependencies (10-15 minutes). Once ready, you'll see:
+
+```
+Running on local URL:  http://127.0.0.1:7860
+```
+
+The Web UI is at that URL. The API is at the same address.
+
+## Step 3: Download Models
+
+The default model works, but specialized models produce much better results.
+
+### Where to Find Models
+
+- **CivitAI** — Largest collection, community ratings
+- **HuggingFace** — Official model repos
+- **CivitAI.com** — Filter by base model (SD 1.5 or SDXL)
+
+### Recommended Starter Models
+
+| Model | Best For | Size | Base |
+|-------|----------|------|------|
+| DreamShaper 8 | General purpose | 2 GB | SD 1.5 |
+| Realistic Vision 5.1 | Photorealism | 2 GB | SD 1.5 |
+| RevAnimated 1.2.2 | Artistic / creative | 2 GB | SD 1.5 |
+| Anything V5 | Anime / illustration | 2 GB | SD 1.5 |
+| Juggernaut XL | High quality, all styles | 7 GB | SDXL |
+
+### Installing Models
+
+1. Download the `.safetensors` file
+2. Move it to `stable-diffusion-webui/models/Stable-diffusion/`
+3. In the WebUI, click the refresh button next to the model dropdown
+4. Select your new model
+
+## Step 4: Test the API
+
+With SD running, test each endpoint:
+
+### Text to Image
+
+```bash
+curl -X POST http://127.0.0.1:7860/sdapi/v1/txt2img \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "a mountain landscape at sunset, photorealistic, 4k",
+    "negative_prompt": "blurry, bad quality, distorted",
+    "width": 512,
+    "height": 512,
+    "steps": 25,
+    "cfg_scale": 7,
+    "sampler_name": "DPM++ 2M",
+    "scheduler": "Karras"
+  }'
+```
+
+The response contains `images` — an array of base64-encoded PNGs.
+
+### Image to Image (Restyle)
+
+```bash
+curl -X POST http://127.0.0.1:7860/sdapi/v1/img2img \
+  -H "Content-Type: application/json" \
+  -d '{
+    "init_images": ["<base64 image>"],
+    "prompt": "oil painting style, impressionist",
+    "denoising_strength": 0.55,
+    "width": 512,
+    "height": 512,
+    "steps": 25
+  }'
+```
+
+### Upscale
+
+```bash
+curl -X POST http://127.0.0.1:7860/sdapi/v1/extra-single-image \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "<base64 image>",
+    "upscaler_1": "R-ESRGAN 4x+",
+    "upscaling_resize": 2
+  }'
+```
+
+### Interrogate (Image to Text)
+
+```bash
+curl -X POST http://127.0.0.1:7860/sdapi/v1/interrogate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "<base64 image>",
+    "model": "clip"
+  }'
+```
+
+### List Available Models
+
+```bash
+curl http://127.0.0.1:7860/sdapi/v1/sd-models
+```
+
+### Switch Active Model
+
+```bash
+# Check current model
+curl http://127.0.0.1:7860/sdapi/v1/options | jq '.sd_model_checkpoint'
+
+# Switch model
+curl -X POST http://127.0.0.1:7860/sdapi/v1/options \
+  -H "Content-Type: application/json" \
+  -d '{"sd_model_checkpoint": "dreamshaper_8.safetensors"}'
+```
+
+> **Tip:** Model switching takes 15-30 seconds. Always check the current model first and skip switching if it's already loaded.
+
+## Step 5: Integrate with Next.js
+
+Create an API route that proxies requests to SD:
+
+```typescript
+// app/api/generate-image/route.ts
+const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
+
+export async function POST(req: Request) {
+  const { prompt, negativePrompt, model } = await req.json();
+
+  // Optional: switch model if needed
+  if (model) {
+    const current = await fetch(`${SD_URL}/sdapi/v1/options`)
+      .then(r => r.json())
+      .then(d => d.sd_model_checkpoint);
+
+    if (current !== model) {
+      await fetch(`${SD_URL}/sdapi/v1/options`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sd_model_checkpoint: model }),
+      });
+    }
+  }
+
+  const res = await fetch(`${SD_URL}/sdapi/v1/txt2img`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt,
+      negative_prompt: negativePrompt || "blurry, bad quality",
+      width: 512,
+      height: 512,
+      steps: 25,
+      cfg_scale: 7,
+      sampler_name: "DPM++ 2M",
+      scheduler: "Karras",
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+
+  if (!res.ok) {
+    return Response.json({ error: "Generation failed" }, { status: 502 });
+  }
+
+  const data = await res.json();
+  return Response.json({
+    image: data.images[0],
+    seed: JSON.parse(data.info).seed,
+  });
+}
+```
+
+## Step 6: Performance Tuning
+
+### xformers
+
+Already enabled with `--xformers`. This optimizes memory usage and speeds up generation by 20-30%.
+
+### Resolution
+
+SD 1.5 models work best at 512x512. Going larger increases VRAM usage and time. Generate at 512x512, then upscale with ESRGAN for high-res results.
+
+SDXL models work best at 1024x1024 but need 8GB+ VRAM.
+
+### Batch Size
+
+Generate multiple images at once if you have the VRAM:
+
+```json
+{
+  "batch_size": 4,
+  "n_iter": 1
+}
+```
+
+### VAE
+
+A good VAE improves color accuracy. Download `vae-ft-mse-840000-ema-pruned.safetensors` and place it in the `models/VAE/` directory.
+
+## Troubleshooting
+
+### "CUDA out of memory"
+
+- Reduce resolution to 512x512
+- Lower batch size to 1
+- Close other GPU applications
+- Add `--medvram` to COMMANDLINE_ARGS
+
+### API Not Responding
+
+- Check that SD is fully loaded (look for "Model loaded" in the console)
+- Verify `--api` is in your COMMANDLINE_ARGS
+- Test with `curl http://127.0.0.1:7860/sdapi/v1/progress`
+
+### Slow Generation
+
+- Enable xformers: `--xformers`
+- Use fewer steps (20-25 is usually enough)
+- Use DPM++ 2M Karras sampler (fast and high quality)
+- Check that your GPU is being used (watch nvidia-smi during generation)
+
+### Model Won't Load
+
+- Ensure the file is `.safetensors` (not `.ckpt` — less safe)
+- Check it's in the correct directory: `models/Stable-diffusion/`
+- Verify the file isn't corrupted (check file size against the download source)
+
+## What's Next?
+
+- Try the [AI Image Studio](/tools/image-studio) to see all these features in action
+- Read about [running Stable Diffusion locally](/blog/stable-diffusion-local-image-generation)
+- Learn about [building AI features into Next.js](/guides/building-ai-nextjs-app)

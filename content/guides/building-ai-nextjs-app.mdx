@@ -1,0 +1,380 @@
+---
+title: "Building AI Tools into a Next.js App"
+date: "2026-04-01"
+description: "A practical guide to integrating local LLMs and Stable Diffusion into a Next.js application — with streaming, error handling, and real examples."
+tags: ["nextjs", "ollama", "stable-diffusion", "tutorial"]
+readTime: "12 min read"
+difficulty: "Intermediate"
+---
+
+# Building AI Tools into a Next.js App
+
+This guide shows you how to add AI-powered features to a Next.js app using local models. We'll cover text generation with Ollama, image generation with Stable Diffusion, and the streaming patterns that make them feel responsive.
+
+## What You'll Build
+
+By the end of this guide, you'll have:
+
+1. A streaming chat API route connected to Ollama
+2. An image generation endpoint connected to Stable Diffusion
+3. Frontend components that display real-time progress
+4. Error handling for when AI services are unavailable
+
+## Prerequisites
+
+- Next.js 14+ project with App Router
+- Ollama installed and running ([setup guide](/guides/running-ollama-on-windows))
+- Stable Diffusion with `--api` flag (optional, for image features)
+
+## Part 1: Streaming Chat with Ollama
+
+### The API Route
+
+```typescript
+// app/api/chat/route.ts
+import { NextRequest } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(req: NextRequest) {
+  const { prompt, systemPrompt } = await req.json();
+
+  if (!prompt || typeof prompt !== "string") {
+    return Response.json({ error: "Prompt is required" }, { status: 400 });
+  }
+
+  // Check if Ollama is running
+  try {
+    await fetch("http://localhost:11434/api/tags", {
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch {
+    return Response.json(
+      { error: "Ollama is not running" },
+      { status: 502 }
+    );
+  }
+
+  // Stream the response
+  const ollamaRes = await fetch("http://localhost:11434/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gemma3:4b",
+      prompt,
+      system: systemPrompt || "You are a helpful assistant.",
+      stream: true,
+    }),
+  });
+
+  // Pipe Ollama's stream directly to the client
+  return new Response(ollamaRes.body, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+```
+
+### The Frontend Component
+
+```tsx
+"use client";
+import { useState } from "react";
+
+export default function Chat() {
+  const [input, setInput] = useState("");
+  const [response, setResponse] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit() {
+    setLoading(true);
+    setResponse("");
+
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: input }),
+    });
+
+    if (!res.ok || !res.body) {
+      setResponse("Error: Could not connect to AI");
+      setLoading(false);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      // Ollama sends JSON lines when streaming
+      const lines = chunk.split("\n").filter(Boolean);
+
+      for (const line of lines) {
+        try {
+          const data = JSON.parse(line);
+          if (data.response) {
+            setResponse((prev) => prev + data.response);
+          }
+        } catch {
+          // Partial JSON, skip
+        }
+      }
+    }
+
+    setLoading(false);
+  }
+
+  return (
+    <div>
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Ask something..."
+      />
+      <button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Thinking..." : "Send"}
+      </button>
+      <div>{response}</div>
+    </div>
+  );
+}
+```
+
+## Part 2: Server-Sent Events (SSE) for Complex Workflows
+
+When an AI task has multiple steps (like generating prompts, then images), SSE gives you fine-grained control over progress updates.
+
+### SSE API Route Pattern
+
+```typescript
+// app/api/generate/route.ts
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      function send(event: string, data: object) {
+        controller.enqueue(
+          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+        );
+      }
+
+      try {
+        send("status", { message: "Generating prompt..." });
+
+        // Step 1: Use LLM to enhance the prompt
+        const enhanced = await enhancePrompt(prompt);
+        send("prompt", { original: prompt, enhanced });
+
+        // Step 2: Generate the image
+        send("status", { message: "Creating image..." });
+        const image = await generateImage(enhanced);
+        send("image", { base64: image });
+
+        send("done", {});
+      } catch (err) {
+        send("error", {
+          message: err instanceof Error ? err.message : "Unknown error",
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+```
+
+### SSE Client Pattern
+
+This pattern handles events split across multiple chunks — a common issue with large payloads like base64 images:
+
+```typescript
+async function streamGenerate(prompt: string) {
+  const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let eventType = ""; // IMPORTANT: must be outside the loop
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        eventType = line.slice(7).trim();
+      } else if (line.startsWith("data: ") && eventType) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          handleEvent(eventType, data);
+        } catch {
+          // Incomplete JSON, will be completed in next chunk
+        }
+        eventType = "";
+      }
+    }
+  }
+}
+```
+
+> **Critical:** Keep `eventType` outside the while loop. If a large base64 image is split across chunks, the event type arrives in an earlier chunk than the complete data line. Resetting `eventType` inside the loop loses it.
+
+## Part 3: Image Generation with Stable Diffusion
+
+### txt2img API Route
+
+```typescript
+// app/api/image/route.ts
+const SD_URL = "http://127.0.0.1:7860";
+
+export async function POST(req: Request) {
+  const { prompt, negativePrompt, steps, cfgScale } = await req.json();
+
+  const res = await fetch(`${SD_URL}/sdapi/v1/txt2img`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt,
+      negative_prompt: negativePrompt || "blurry, bad quality",
+      width: 512,
+      height: 512,
+      steps: Math.min(steps || 25, 50),
+      cfg_scale: cfgScale || 7,
+      sampler_name: "DPM++ 2M",
+      scheduler: "Karras",
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+
+  if (!res.ok) {
+    return Response.json({ error: "Generation failed" }, { status: 502 });
+  }
+
+  const data = await res.json();
+  return Response.json({ image: data.images[0] });
+}
+```
+
+### Displaying Base64 Images
+
+```tsx
+{image && (
+  <img
+    src={`data:image/png;base64,${image}`}
+    alt="Generated image"
+    className="rounded-xl"
+  />
+)}
+```
+
+## Part 4: Production Considerations
+
+### Disable Compression for SSE
+
+Next.js production builds gzip responses by default, which buffers SSE events. Disable it:
+
+```typescript
+// next.config.ts
+const nextConfig = {
+  compress: false,
+};
+```
+
+### Graceful Degradation
+
+Always check if AI services are available before making requests:
+
+```typescript
+async function isOllamaRunning(): Promise<boolean> {
+  try {
+    const res = await fetch("http://localhost:11434/api/tags", {
+      signal: AbortSignal.timeout(3000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+```
+
+### Rate Limiting
+
+Protect your local AI from being overwhelmed:
+
+```typescript
+const rateLimitMap = new Map<string, { count: number; reset: number }>();
+
+function isRateLimited(ip: string, limit = 10, windowMs = 300000): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.reset) {
+    rateLimitMap.set(ip, { count: 1, reset: now + windowMs });
+    return false;
+  }
+  entry.count++;
+  return entry.count > limit;
+}
+```
+
+### Timeouts
+
+Local AI can be slow on some hardware. Set appropriate timeouts:
+
+```typescript
+// Ollama text generation: 60 seconds
+signal: AbortSignal.timeout(60000)
+
+// Stable Diffusion image generation: 120 seconds
+signal: AbortSignal.timeout(120000)
+
+// Stable Diffusion upscaling: 120 seconds
+signal: AbortSignal.timeout(120000)
+```
+
+## Full Example Project Structure
+
+```
+app/
+  api/
+    chat/route.ts         # Streaming chat with Ollama
+    generate/route.ts     # SSE image generation pipeline
+    image-studio/route.ts # Upscale, restyle, inpaint, caption
+  tools/
+    chat/page.tsx         # Chat UI
+    image-generator/page.tsx
+    image-studio/page.tsx
+lib/
+  guardrails.ts          # System prompts for each tool
+next.config.ts           # compress: false for SSE
+```
+
+## What's Next?
+
+- Try the [AI tools](/tools) on RnR Vibe to see these patterns in action
+- Read about [self-hosting your AI platform](/blog/self-hosting-ai-tools)
+- Learn about [the best local models for coding](/blog/best-local-llm-models-for-coding)

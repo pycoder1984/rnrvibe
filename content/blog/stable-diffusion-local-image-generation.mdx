@@ -1,0 +1,153 @@
+---
+title: "Run Stable Diffusion Locally: Free AI Image Generation"
+date: "2026-03-30"
+description: "Set up Stable Diffusion on your own PC for free, unlimited AI image generation — no subscriptions, no watermarks, no usage limits."
+tags: ["stable-diffusion", "image-generation", "local-ai", "tools"]
+readTime: "7 min read"
+---
+
+# Run Stable Diffusion Locally: Free AI Image Generation
+
+Cloud image generation services charge per image and limit what you can create. Running Stable Diffusion locally gives you unlimited, uncensored, free image generation on your own hardware.
+
+## Why Run It Locally?
+
+- **Free forever** — No per-image costs, no subscriptions
+- **No watermarks** — Every image is yours
+- **No content filters** — You decide what's appropriate
+- **No queue times** — Generate instantly on your own GPU
+- **Full control** — Choose models, samplers, and parameters
+
+## What You Need
+
+### Minimum Requirements
+
+- **GPU:** NVIDIA with 4GB+ VRAM (GTX 1060 or newer)
+- **RAM:** 8 GB
+- **Storage:** 15 GB for the base install, 2-10 GB per model
+- **OS:** Windows 10/11, Linux, or macOS (Apple Silicon supported)
+
+### Recommended Setup
+
+- **GPU:** NVIDIA RTX 3060 12GB or better
+- **RAM:** 16 GB
+- **Storage:** SSD with 50+ GB free
+
+## Installation: AUTOMATIC1111 WebUI
+
+The most popular way to run Stable Diffusion is through AUTOMATIC1111's WebUI, which gives you a browser-based interface with all the features you need.
+
+### Windows
+
+```bash
+# 1. Install Python 3.10.x from python.org
+# 2. Install Git from git-scm.com
+# 3. Clone the repo
+git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+cd stable-diffusion-webui
+
+# 4. Run the installer (downloads everything automatically)
+webui-user.bat
+```
+
+### Linux / macOS
+
+```bash
+# Clone and run
+git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+cd stable-diffusion-webui
+./webui.sh
+```
+
+The first run takes 10-15 minutes as it downloads dependencies and the base model.
+
+## Choosing Models
+
+The base model works, but community fine-tuned models produce much better results for specific styles.
+
+### Top Models for Different Styles
+
+**Photorealistic:**
+- Realistic Vision — Best for lifelike photos
+- CyberRealistic — Sharp, detailed portraits
+
+**Anime / Illustration:**
+- Anything V5 — The gold standard for anime
+- CounterfeitXL — High-quality anime with SDXL
+
+**General Purpose:**
+- DreamShaper — Versatile, handles most styles
+- RevAnimated — Great blend of realism and artistic style
+
+### Installing Models
+
+1. Download `.safetensors` files from [CivitAI](https://civitai.com) or [HuggingFace](https://huggingface.co)
+2. Place them in `stable-diffusion-webui/models/Stable-diffusion/`
+3. Restart the WebUI or click the refresh button
+
+## Using the API
+
+For developers, the real power is the API. Start SD with the `--api` flag:
+
+```bash
+# In webui-user.bat, set:
+COMMANDLINE_ARGS=--api --xformers
+```
+
+Then call it from your code:
+
+```typescript
+const response = await fetch("http://127.0.0.1:7860/sdapi/v1/txt2img", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    prompt: "a cozy coffee shop interior, warm lighting, photorealistic",
+    negative_prompt: "blurry, bad quality, distorted",
+    width: 512,
+    height: 512,
+    steps: 25,
+    cfg_scale: 7,
+    sampler_name: "DPM++ 2M",
+    scheduler: "Karras",
+  }),
+});
+
+const data = await response.json();
+// data.images[0] contains the base64-encoded PNG
+```
+
+This is exactly how our [AI Image Generator](/tools/image-generator) and [Image Studio](/tools/image-studio) work under the hood.
+
+## Key Parameters Explained
+
+Understanding these parameters helps you get better results:
+
+- **Steps (15-50):** More steps = more detail, but slower. 25 is the sweet spot.
+- **CFG Scale (1-20):** How closely to follow the prompt. 7 is balanced, higher = more literal.
+- **Sampler:** The algorithm used. DPM++ 2M Karras is fast and high quality.
+- **Denoising Strength (img2img):** 0.3 = subtle changes, 0.7 = major transformation.
+- **Seed:** A specific number reproduces the exact same image. Use -1 for random.
+
+## Beyond Text-to-Image
+
+Stable Diffusion's API supports much more than basic image generation:
+
+- **img2img** — Transform existing images with text prompts
+- **Inpainting** — Edit specific regions of an image
+- **Upscaling** — Enhance resolution with AI (ESRGAN, SwinIR)
+- **Face Restoration** — Fix faces with GFPGAN or CodeFormer
+- **Interrogation** — Generate text descriptions of images with CLIP
+
+We built all of these into our [Image Studio](/tools/image-studio) — try them out with your own images.
+
+## Tips for Better Results
+
+1. **Be specific in prompts** — "a red 1967 Ford Mustang on a mountain road at sunset" beats "a car"
+2. **Use negative prompts** — Always include "blurry, bad quality, distorted, deformed" at minimum
+3. **Start at 512x512** — Generate small, then upscale the best results
+4. **Use the right model** — Photorealistic models for photos, anime models for illustrations
+5. **Experiment with seeds** — When you get a good composition, lock the seed and tweak the prompt
+
+## The Bottom Line
+
+Local Stable Diffusion is free, private, and as powerful as any cloud service. The initial setup takes 30 minutes, but after that you have unlimited AI image generation forever. Combined with local LLMs through [Ollama](/blog/building-with-local-llms), you can build a complete AI toolkit that runs entirely on your own hardware.
