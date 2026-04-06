@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export const dynamic = "force-dynamic";
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:4b";
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
-const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || path.join(process.cwd(), "data", "generated-images");
 
 const OLLAMA_TIMEOUT_MS = 30_000;
 const SD_TIMEOUT_MS = 3 * 60 * 1000;
@@ -198,15 +195,6 @@ async function generateLogoImage(
   }
 }
 
-async function saveImageToDisk(base64: string, style: string, seed: number): Promise<string> {
-  await mkdir(OUTPUT_DIR, { recursive: true });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const sanitizedStyle = style.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const filename = `${timestamp}_logo_${sanitizedStyle}_${seed}.png`;
-  const filepath = path.join(OUTPUT_DIR, filename);
-  await writeFile(filepath, Buffer.from(base64, "base64"));
-  return filename;
-}
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -318,21 +306,17 @@ export async function POST(req: NextRequest) {
               error: result.error,
             });
           } else {
-            let savedFile = "";
-            try { savedFile = await saveImageToDisk(result.image, p.style, result.seed); } catch { /* non-critical */ }
-
             send("image", {
               index: i,
               style: p.style,
               image: result.image,
               seed: result.seed,
               prompt: p.prompt,
-              savedAs: savedFile,
             });
             addLog({
               timestamp: new Date().toISOString(), ip, tool: "logo-generator",
               prompt: p.prompt.slice(0, 500),
-              response: `Style: ${p.style}, Seed: ${result.seed}, File: ${savedFile}`,
+              response: `Style: ${p.style}, Seed: ${result.seed}`,
               responseTimeMs: Date.now() - requestStartTime, status: "success",
             });
           }

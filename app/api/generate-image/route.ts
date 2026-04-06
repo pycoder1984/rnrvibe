@@ -1,24 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export const dynamic = "force-dynamic";
 
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
-const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || path.join(process.cwd(), "data", "generated-images");
-
-async function saveImageToDisk(base64: string, modelName: string, seed: number, prompt: string): Promise<string> {
-  await mkdir(OUTPUT_DIR, { recursive: true });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const sanitizedModel = modelName.split(".")[0].replace(/[^a-zA-Z0-9_-]/g, "_");
-  const filename = `${timestamp}_${sanitizedModel}_${seed}.png`;
-  const filepath = path.join(OUTPUT_DIR, filename);
-  const buffer = Buffer.from(base64, "base64");
-  await writeFile(filepath, buffer);
-  return filename;
-}
 
 // Per-model generation timeout: 5 minutes
 const MODEL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -259,23 +245,16 @@ export async function POST(req: NextRequest) {
               error: result.error,
             });
           } else {
-            // Save image to disk
-            let savedFile = "";
-            try {
-              savedFile = await saveImageToDisk(result.image, modelTitle, result.seed, prompt);
-            } catch { /* non-critical */ }
-
             send("image", {
               index: i,
               model: modelTitle,
               image: result.image,
               seed: result.seed,
-              savedAs: savedFile,
             });
             addLog({
               timestamp: new Date().toISOString(), ip, tool: "image-generator",
               prompt: prompt.slice(0, 500),
-              response: `Model: ${modelTitle}, Seed: ${result.seed}, ${clampedWidth}x${clampedHeight}, ${clampedSteps} steps, File: ${savedFile}`,
+              response: `Model: ${modelTitle}, Seed: ${result.seed}, ${clampedWidth}x${clampedHeight}, ${clampedSteps} steps`,
               responseTimeMs: Date.now() - requestStartTime,
               status: "success",
             });

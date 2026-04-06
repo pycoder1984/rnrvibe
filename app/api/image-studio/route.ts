@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 export const dynamic = "force-dynamic";
 
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
-const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || path.join(process.cwd(), "data", "generated-images");
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
-
-async function saveImage(base64: string, prefix: string): Promise<string> {
-  try {
-    await mkdir(OUTPUT_DIR, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const filename = `${timestamp}_${prefix}.png`;
-    await writeFile(path.join(OUTPUT_DIR, filename), Buffer.from(base64, "base64"));
-    return filename;
-  } catch {
-    return "";
-  }
-}
 
 // ─── Upscale & Enhance ───────────────────────────────────────────────
 
@@ -60,8 +45,7 @@ async function handleUpscale(body: Record<string, unknown>) {
     return NextResponse.json({ error: "No image returned" }, { status: 502 });
   }
 
-  const saved = await saveImage(data.image, `upscale_${(upscaler as string || "esrgan").replace(/[^a-zA-Z0-9]/g, "_")}_${scaleFactor}x`);
-  return NextResponse.json({ image: data.image, savedAs: saved });
+  return NextResponse.json({ image: data.image });
 }
 
 // ─── Restyle (img2img) ───────────────────────────────────────────────
@@ -109,8 +93,7 @@ async function handleRestyle(body: Record<string, unknown>) {
   let resultSeed = -1;
   try { resultSeed = JSON.parse(data.info).seed; } catch { /* ignore */ }
 
-  const saved = await saveImage(data.images[0], `restyle_${resultSeed}`);
-  return NextResponse.json({ image: data.images[0], seed: resultSeed, savedAs: saved });
+  return NextResponse.json({ image: data.images[0], seed: resultSeed });
 }
 
 // ─── Inpaint ─────────────────────────────────────────────────────────
@@ -168,8 +151,7 @@ async function handleInpaint(body: Record<string, unknown>) {
   let resultSeed = -1;
   try { resultSeed = JSON.parse(data.info).seed; } catch { /* ignore */ }
 
-  const saved = await saveImage(data.images[0], `inpaint_${resultSeed}`);
-  return NextResponse.json({ image: data.images[0], seed: resultSeed, savedAs: saved });
+  return NextResponse.json({ image: data.images[0], seed: resultSeed });
 }
 
 // ─── Caption (Interrogate) ───────────────────────────────────────────
