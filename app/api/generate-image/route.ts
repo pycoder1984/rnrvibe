@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
+import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 export const dynamic = "force-dynamic";
 
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
-const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || "C:\\Users\\obaid\\stable-diffusion-webui\\outputs\\txt2img-images";
+const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || path.join(process.cwd(), "data", "generated-images");
 
 async function saveImageToDisk(base64: string, modelName: string, seed: number, prompt: string): Promise<string> {
   await mkdir(OUTPUT_DIR, { recursive: true });
@@ -24,20 +25,8 @@ const MODEL_TIMEOUT_MS = 5 * 60 * 1000;
 // Total request timeout: 20 minutes (for 4 models with model switching)
 const TOTAL_TIMEOUT_MS = 20 * 60 * 1000;
 
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 10;
-const RATE_WINDOW_MS = 5 * 60 * 1000; // 10 per 5 minutes
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT;
-}
+const RATE_WINDOW_MS = 5 * 60 * 1000;
 
 async function getCurrentModel(): Promise<string | null> {
   try {
@@ -101,7 +90,7 @@ async function generateImage(
 
     if (!res.ok) {
       const text = await res.text().catch(() => "Unknown error");
-      return { error: `Generation failed (${res.status}): ${text.slice(0, 200)}` };
+      return { error: "Image generation failed. Try different settings or a different model." };
     }
 
     const data = await res.json();
@@ -131,9 +120,10 @@ async function generateImage(
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+  const ip = getClientIp(req);
+  const { limited } = checkRateLimit("image-gen", ip, RATE_LIMIT, RATE_WINDOW_MS);
 
-  if (isRateLimited(ip)) {
+  if (limited) {
     addLog({
       timestamp: new Date().toISOString(), ip, tool: "image-generator",
       prompt: "", response: "", responseTimeMs: 0, status: "blocked",

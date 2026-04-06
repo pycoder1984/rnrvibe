@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getLogs, getStats, clearLogs } from "@/lib/request-log";
 
 function isLocal(req: NextRequest): boolean {
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "";
+  // If cf-connecting-ip exists, request came through Cloudflare (external)
+  if (req.headers.get("cf-connecting-ip")) return false;
+
   const host = req.headers.get("host") || "";
-  return (
-    ip === "127.0.0.1" ||
-    ip === "::1" ||
-    ip === "" ||
-    host.startsWith("localhost") ||
-    host.startsWith("127.0.0.1")
-  );
+  return host.startsWith("localhost") || host.startsWith("127.0.0.1");
 }
 
 export async function GET(req: NextRequest) {

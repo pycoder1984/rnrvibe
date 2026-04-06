@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 
 const ALLOWED_ORIGINS = [
   "https://www.rnrvibe.com",
@@ -16,17 +17,19 @@ function getCorsOrigin(request: NextRequest): string | null {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Block external access to dashboard
+  // Block external access to dashboard — only allow true localhost
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/api/dashboard")) {
     const host = req.headers.get("host") || "";
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "";
+    const cfIp = req.headers.get("cf-connecting-ip");
 
+    // If cf-connecting-ip is present, the request came through Cloudflare (external)
+    if (cfIp) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // Only allow localhost host header
     const isLocal =
-      host.startsWith("localhost") ||
-      host.startsWith("127.0.0.1") ||
-      ip === "127.0.0.1" ||
-      ip === "::1" ||
-      ip === "";
+      host.startsWith("localhost") || host.startsWith("127.0.0.1");
 
     if (!isLocal) {
       return new NextResponse("Forbidden", { status: 403 });
@@ -39,10 +42,13 @@ export function middleware(req: NextRequest) {
 
     // Handle preflight OPTIONS
     if (req.method === "OPTIONS") {
+      if (!allowedOrigin) {
+        return new NextResponse(null, { status: 403 });
+      }
       return new NextResponse(null, {
         status: 204,
         headers: {
-          "Access-Control-Allow-Origin": allowedOrigin || ALLOWED_ORIGINS[0],
+          "Access-Control-Allow-Origin": allowedOrigin,
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
           "Access-Control-Max-Age": "86400",
@@ -50,14 +56,13 @@ export function middleware(req: NextRequest) {
       });
     }
 
-    // Add CORS headers to actual response
+    // Add CORS headers to actual response only if origin is allowed
     const response = NextResponse.next();
-    response.headers.set(
-      "Access-Control-Allow-Origin",
-      allowedOrigin || ALLOWED_ORIGINS[0]
-    );
-    response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+    if (allowedOrigin) {
+      response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
+      response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+    }
     return response;
   }
 

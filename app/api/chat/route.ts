@@ -7,29 +7,11 @@ import {
   ALLOWED_SYSTEM_PROMPTS,
 } from "@/lib/guardrails";
 import { addLog } from "@/lib/request-log";
+import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60 * 1000;
-
-function getRateLimitInfo(ip: string): { limited: boolean; remaining: number; resetTime: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW_MS });
-    return { limited: false, remaining: RATE_LIMIT - 1, resetTime: now + RATE_WINDOW_MS };
-  }
-
-  entry.count++;
-  return {
-    limited: entry.count > RATE_LIMIT,
-    remaining: Math.max(0, RATE_LIMIT - entry.count),
-    resetTime: entry.resetTime,
-  };
-}
 
 function rateLimitHeaders(remaining: number, resetTime: number) {
   return {
@@ -40,8 +22,8 @@ function rateLimitHeaders(remaining: number, resetTime: number) {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  const { limited, remaining, resetTime } = getRateLimitInfo(ip);
+  const ip = getClientIp(req);
+  const { limited, remaining, resetTime } = checkRateLimit("chat", ip, RATE_LIMIT, RATE_WINDOW_MS);
 
   if (limited) {
     return NextResponse.json(

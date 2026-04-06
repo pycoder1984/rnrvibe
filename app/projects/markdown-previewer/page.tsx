@@ -49,7 +49,12 @@ function parseMarkdown(md: string): string {
   // Horizontal rule
   html = html.replace(/^---$/gm, '<hr class="border-neutral-700 my-4" />');
   // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-purple-400 underline">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match: string, text: string, url: string) => {
+    if (/^(https?:\/\/|\/|#|mailto:)/i.test(url)) {
+      return `<a href="${url}" class="text-purple-400 underline" rel="noopener noreferrer">${text}</a>`;
+    }
+    return `<span class="text-purple-400">${text}</span>`;
+  });
   // Paragraphs
   html = html.replace(/^(?!<[hupblo]|<hr|<pre|<code)(.+)$/gm, '<p class="my-1.5">$1</p>');
 

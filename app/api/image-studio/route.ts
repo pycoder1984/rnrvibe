@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
+import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 export const dynamic = "force-dynamic";
 
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
-const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || "C:\\Users\\obaid\\stable-diffusion-webui\\outputs\\txt2img-images";
+const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || path.join(process.cwd(), "data", "generated-images");
 
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT;
-}
 
 async function saveImage(base64: string, prefix: string): Promise<string> {
   try {
@@ -63,7 +52,7 @@ async function handleUpscale(body: Record<string, unknown>) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    return NextResponse.json({ error: `Upscale failed (${res.status}): ${text.slice(0, 200)}` }, { status: 502 });
+    return NextResponse.json({ error: `Upscale failed. Try a different image or settings.` }, { status: 502 });
   }
 
   const data = await res.json();
@@ -109,7 +98,7 @@ async function handleRestyle(body: Record<string, unknown>) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    return NextResponse.json({ error: `Restyle failed (${res.status}): ${text.slice(0, 200)}` }, { status: 502 });
+    return NextResponse.json({ error: `Restyle failed. Try a different style or image.` }, { status: 502 });
   }
 
   const data = await res.json();
@@ -168,7 +157,7 @@ async function handleInpaint(body: Record<string, unknown>) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    return NextResponse.json({ error: `Inpaint failed (${res.status}): ${text.slice(0, 200)}` }, { status: 502 });
+    return NextResponse.json({ error: `Inpaint failed. Try a different mask or prompt.` }, { status: 502 });
   }
 
   const data = await res.json();
@@ -204,7 +193,7 @@ async function handleCaption(body: Record<string, unknown>) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    return NextResponse.json({ error: `Caption failed (${res.status}): ${text.slice(0, 200)}` }, { status: 502 });
+    return NextResponse.json({ error: `Caption generation failed. Try a different image.` }, { status: 502 });
   }
 
   const data = await res.json();
@@ -214,9 +203,10 @@ async function handleCaption(body: Record<string, unknown>) {
 // ─── Main POST handler ──────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+  const ip = getClientIp(req);
+  const { limited } = checkRateLimit("image-studio", ip, RATE_LIMIT, RATE_WINDOW_MS);
 
-  if (isRateLimited(ip)) {
+  if (limited) {
     addLog({
       timestamp: new Date().toISOString(), ip, tool: "image-studio",
       prompt: "", response: "", responseTimeMs: 0, status: "blocked", error: "Rate limited",

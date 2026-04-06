@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 import fs from "fs";
 import path from "path";
 
@@ -14,7 +15,13 @@ function ensureDataDir() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const { limited } = checkRateLimit("newsletter", ip, 5, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const { email } = await req.json();
 

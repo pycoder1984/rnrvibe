@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
+import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -8,26 +9,14 @@ export const dynamic = "force-dynamic";
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:4b";
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
-const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || "C:\\Users\\obaid\\stable-diffusion-webui\\outputs\\txt2img-images";
+const OUTPUT_DIR = process.env.SD_OUTPUT_DIR || path.join(process.cwd(), "data", "generated-images");
 
 const OLLAMA_TIMEOUT_MS = 30_000;
 const SD_TIMEOUT_MS = 3 * 60 * 1000;
 const TOTAL_TIMEOUT_MS = 15 * 60 * 1000;
 
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT;
-}
 
 // Simple hex to color name lookup
 const COLOR_NAMES: Record<string, string> = {
@@ -220,9 +209,10 @@ async function saveImageToDisk(base64: string, style: string, seed: number): Pro
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+  const ip = getClientIp(req);
+  const { limited } = checkRateLimit("logo-gen", ip, RATE_LIMIT, RATE_WINDOW_MS);
 
-  if (isRateLimited(ip)) {
+  if (limited) {
     addLog({
       timestamp: new Date().toISOString(), ip, tool: "logo-generator",
       prompt: "", response: "", responseTimeMs: 0, status: "blocked",

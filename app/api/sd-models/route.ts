@@ -1,8 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const { limited } = checkRateLimit("sd-models", ip, 30, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -15,14 +22,13 @@ export async function GET() {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: "Stable Diffusion API not responding" },
+        { error: "Stable Diffusion is not responding" },
         { status: 502 }
       );
     }
 
     const models = await res.json();
 
-    // Also fetch the currently loaded model
     let currentModel = "";
     try {
       const optRes = await fetch(`${SD_URL}/sdapi/v1/options`, {
@@ -44,15 +50,9 @@ export async function GET() {
     }));
 
     return NextResponse.json({ models: simplified, current: currentModel });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      return NextResponse.json(
-        { error: "Stable Diffusion is not running. Start it with --api flag." },
-        { status: 504 }
-      );
-    }
+  } catch {
     return NextResponse.json(
-      { error: "Cannot connect to Stable Diffusion. Make sure it is running on " + SD_URL },
+      { error: "Stable Diffusion is not running. Please start it locally." },
       { status: 502 }
     );
   }

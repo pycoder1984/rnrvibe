@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createHash } from "crypto";
 
 export interface RequestLogEntry {
   id: number;
@@ -20,6 +21,12 @@ let nextId = 1;
 let logs: RequestLogEntry[] = [];
 let initialized = false;
 
+/** Hash an IP address so we can count unique users without storing PII */
+export function hashIp(ip: string): string {
+  if (!ip) return "unknown";
+  return createHash("sha256").update(ip).digest("hex").slice(0, 12);
+}
+
 function loadLogs() {
   if (initialized) return;
   initialized = true;
@@ -37,7 +44,6 @@ function loadLogs() {
       }
     }
   } catch {
-    // Start fresh if file is corrupted
     logs = [];
   }
 }
@@ -54,7 +60,6 @@ function trimLogFile() {
   try {
     if (fs.existsSync(LOG_FILE)) {
       const stat = fs.statSync(LOG_FILE);
-      // Trim file if it exceeds ~2MB
       if (stat.size > 2 * 1024 * 1024) {
         const recent = logs.slice(0, MAX_ENTRIES);
         fs.writeFileSync(LOG_FILE, recent.map((l) => JSON.stringify(l)).join("\n") + "\n");
@@ -67,11 +72,11 @@ function trimLogFile() {
 
 export function addLog(entry: Omit<RequestLogEntry, "id">) {
   loadLogs();
-  const log = { ...entry, id: nextId++ };
-  logs.unshift(log); // newest first
+  // Hash IP before storing
+  const log = { ...entry, ip: hashIp(entry.ip), id: nextId++ };
+  logs.unshift(log);
   if (logs.length > MAX_ENTRIES) logs.pop();
   persistLog(log);
-  // Trim file every 100 entries
   if (nextId % 100 === 0) trimLogFile();
   return log;
 }
