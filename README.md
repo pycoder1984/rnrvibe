@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RnR Vibe
+
+A vibecoding platform with 27 AI-powered tools, 18 interactive projects, 26 blog posts, and 23 guides — all running locally with Ollama and Stable Diffusion. No cloud API bills.
+
+**Live at [rnrvibe.com](https://www.rnrvibe.com)**
+
+## Stack
+
+- **Framework:** Next.js 16 (App Router, TypeScript, Tailwind CSS 4)
+- **LLM:** Ollama (gemma4:e4b default, configurable via `OLLAMA_MODEL`)
+- **Image Generation:** Stable Diffusion (AUTOMATIC1111 WebUI with `--api` flag)
+- **Hosting:** Vercel (static/serverless) + Cloudflare Tunnel (AI services on local machine)
+- **Content:** MDX blog posts and guides with gray-matter frontmatter
+
+## Prerequisites
+
+- **Node.js** 18+
+- **Ollama** running locally (`ollama serve`) with a model pulled (e.g. `ollama pull gemma4:e4b`)
+- **Stable Diffusion WebUI** (AUTOMATIC1111) running with `--api` flag — required for image tools only
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Development (hot reload)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Production build
+npm run build
+npm run start -- -p 4000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Or use the startup script: `C:\Users\obaid\Desktop\start-rnrvibe.bat` (starts Ollama, website on port 4000, and Cloudflare Tunnel).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+  api/              # 11 API routes (chat, image generation, health, etc.)
+  tools/            # 27 AI tool pages
+  projects/         # 18 interactive project demos
+  blog/             # Blog listing + [slug] pages
+  guides/           # Guide listing + [slug] pages
+  compare/          # Comparison pages (vs Cursor, Copilot, etc.)
+  dashboard/        # Admin dashboard
+components/         # Shared UI components
+content/
+  blog/             # 26 MDX blog posts
+  guides/           # 23 MDX guides
+data/
+  projects.ts       # Project registry
+  tools.ts          # Tool registry
+lib/
+  api-config.ts     # API base URL config
+  guardrails.ts     # Input sanitization, injection detection, output filtering
+  mdx.ts            # MDX file loading utilities
+  rate-limit.ts     # Shared rate limiting
+  request-log.ts    # Request logging
+public/             # Static assets
+```
 
-## Learn More
+## AI Services
 
-To learn more about Next.js, take a look at the following resources:
+### Ollama (LLM)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Runs on `http://localhost:11434` by default. Used by the chat tool and logo generator (prompt generation phase).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Env Variable | Default | Description |
+|---|---|---|
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL |
+| `OLLAMA_MODEL` | `gemma4:e4b` | Model for chat completions |
 
-## Deploy on Vercel
+### Stable Diffusion (Image Generation)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Runs on `http://127.0.0.1:7860` by default. Used by the Image Generator, Image Studio, and Logo Generator.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Env Variable | Default | Description |
+|---|---|---|
+| `SD_URL` | `http://127.0.0.1:7860` | Stable Diffusion WebUI API URL |
+
+All three image tools check SD connectivity on page load and show an error banner with retry if it's unreachable.
+
+## Key Features
+
+- **27 AI Tools** — chat, code generation, image generation, logo design, code review, and more
+- **18 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Drawing canvas, etc.)
+- **26 Blog Posts + 23 Guides** — MDX content about vibecoding, AI tools, and development
+- **Security Hardened** — input sanitization, prompt injection detection, output filtering, rate limiting
+- **Fully Local AI** — no external API keys needed, runs on your own hardware
+- **SEO Optimized** — dynamic OG images, structured data, sitemap, RSS feed
+
+## Environment Variables
+
+All optional — defaults work for standard local setup:
+
+```env
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=gemma4:e4b
+SD_URL=http://127.0.0.1:7860
+```
+
+## License
+
+Private project.
