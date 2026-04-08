@@ -54,7 +54,7 @@ export default function ProjectsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-3xl">{project.icon}</span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${project.difficulty === "Beginner" ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${project.difficulty === "Beginner" ? "bg-green-500/10 text-green-400" : project.difficulty === "Advanced" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
                         {project.difficulty}
                       </span>
                       <span className="text-xs text-neutral-500 bg-neutral-800 px-2 py-1 rounded-full">

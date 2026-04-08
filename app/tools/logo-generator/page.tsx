@@ -2,7 +2,7 @@
 import { API_BASE } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 interface LogoPrompt {
   style: string;
@@ -66,7 +66,32 @@ export default function LogoGeneratorPage() {
   const [gallery, setGallery] = useState<GeneratedLogo[]>([]);
   const [lightbox, setLightbox] = useState<GeneratedLogo | null>(null);
   const [sdError, setSdError] = useState("");
+  const [sdChecking, setSdChecking] = useState(true);
+  const [sdReady, setSdReady] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Check SD connectivity on mount
+  const checkSD = useCallback(async () => {
+    setSdChecking(true);
+    setSdError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/sd-models`, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Connection failed" }));
+        setSdError(data.error || "Stable Diffusion is not responding.");
+      } else {
+        setSdReady(true);
+      }
+    } catch {
+      setSdError("Cannot connect to Stable Diffusion. Make sure it's running with --api flag.");
+    } finally {
+      setSdChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSD();
+  }, [checkSD]);
 
   const toggleStyle = (id: string) => {
     setSelectedStyles((prev) => {
@@ -85,7 +110,7 @@ export default function LogoGeneratorPage() {
     setColors((prev) => prev.filter((c) => c !== hex));
   };
 
-  const canGenerate = brandName.trim() && description.trim() && selectedStyles.length > 0 && !generating;
+  const canGenerate = brandName.trim() && description.trim() && selectedStyles.length > 0 && !generating && sdReady;
 
   const generate = async () => {
     if (!canGenerate) return;
@@ -271,11 +296,23 @@ export default function LogoGeneratorPage() {
           Describe your brand and get professional logo concepts in seconds — powered by local AI.
         </p>
 
-        {/* SD Error */}
-        {sdError && (
+        {/* SD Status */}
+        {sdChecking && (
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400 mb-6 flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+            Checking Stable Diffusion connection...
+          </div>
+        )}
+        {sdError && !sdChecking && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300 mb-6">
             <div className="font-medium mb-1">Cannot connect to Stable Diffusion</div>
             <div className="text-red-400 text-xs">{sdError}</div>
+            <button
+              onClick={checkSD}
+              className="mt-2 text-xs text-red-300 underline hover:text-white"
+            >
+              Retry connection
+            </button>
           </div>
         )}
 

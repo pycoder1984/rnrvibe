@@ -5,7 +5,7 @@ export interface Project {
   time: string;
   icon: string;
   tags: string[];
-  difficulty: "Beginner" | "Intermediate";
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
 }
 
 export const projects: Project[] = [
@@ -142,6 +142,33 @@ export const projects: Project[] = [
     time: "~6 min",
     icon: "\u{1F517}",
     tags: ["React", "LocalStorage", "Routing"],
+    difficulty: "Intermediate",
+  },
+  {
+    href: "/projects/drawing-canvas",
+    title: "Drawing Canvas",
+    description: "Freehand drawing app with color picker, brush size control, eraser, undo, and PNG export.",
+    time: "~10 min",
+    icon: "\u{1F3A8}",
+    tags: ["React", "Canvas", "Drawing"],
+    difficulty: "Intermediate",
+  },
+  {
+    href: "/projects/kanban-board",
+    title: "Kanban Board",
+    description: "Drag-and-drop task board with To Do, In Progress, and Done columns. Persists to localStorage.",
+    time: "~12 min",
+    icon: "\u{1F4CB}",
+    tags: ["React", "Drag & Drop", "LocalStorage"],
+    difficulty: "Advanced",
+  },
+  {
+    href: "/projects/snippet-manager",
+    title: "Code Snippet Manager",
+    description: "Save, search, and organize code snippets with syntax highlighting, tags, and clipboard copy.",
+    time: "~10 min",
+    icon: "\u{1F4E6}",
+    tags: ["React", "Syntax Highlighting", "LocalStorage"],
     difficulty: "Intermediate",
   },
 ];

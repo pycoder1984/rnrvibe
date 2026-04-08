@@ -246,6 +246,11 @@ export default function ImageStudioPage() {
   const [error, setError] = useState("");
   const [caption, setCaption] = useState("");
 
+  // SD connectivity state
+  const [sdReady, setSdReady] = useState(false);
+  const [sdChecking, setSdChecking] = useState(true);
+  const [sdError, setSdError] = useState("");
+
   // Upscale state
   const [upscalers, setUpscalers] = useState<string[]>([]);
   const [upscaler, setUpscaler] = useState("R-ESRGAN 4x+");
@@ -268,13 +273,29 @@ export default function ImageStudioPage() {
   // Caption state
   const [captionModel, setCaptionModel] = useState("clip");
 
-  // Fetch upscalers on mount
-  useEffect(() => {
-    fetch(`${API_BASE}/api/image-studio`)
-      .then((r) => r.json())
-      .then((d) => { if (d.upscalers) setUpscalers(d.upscalers); })
-      .catch(() => {});
+  // Check SD connectivity and fetch upscalers on mount
+  const checkSD = useCallback(async () => {
+    setSdChecking(true);
+    setSdError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/image-studio`, { signal: AbortSignal.timeout(10000) });
+      const data = await res.json();
+      if (data.upscalers) {
+        setUpscalers(data.upscalers);
+        setSdReady(true);
+      } else {
+        setSdError("Stable Diffusion returned an unexpected response.");
+      }
+    } catch {
+      setSdError("Cannot connect to Stable Diffusion. Make sure it's running with --api flag.");
+    } finally {
+      setSdChecking(false);
+    }
   }, []);
+
+  useEffect(() => {
+    checkSD();
+  }, [checkSD]);
 
   const clearAll = () => {
     setImage("");
@@ -339,6 +360,26 @@ export default function ImageStudioPage() {
         <p className="mb-8 text-neutral-400">
           Upload an image and transform it — upscale, restyle, inpaint, or extract prompts. Powered by local Stable Diffusion.
         </p>
+
+        {/* SD Status */}
+        {sdChecking && (
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400 mb-6 flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+            Checking Stable Diffusion connection...
+          </div>
+        )}
+        {sdError && !sdChecking && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300 mb-6">
+            <div className="font-medium mb-1">Cannot connect to Stable Diffusion</div>
+            <div className="text-red-400 text-xs">{sdError}</div>
+            <button
+              onClick={checkSD}
+              className="mt-2 text-xs text-red-300 underline hover:text-white"
+            >
+              Retry connection
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
@@ -418,7 +459,7 @@ export default function ImageStudioPage() {
                     </>
                   )}
                 </div>
-                <button onClick={doUpscale} disabled={!image || loading}
+                <button onClick={doUpscale} disabled={!image || loading || !sdReady}
                   className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
                   {loading ? "Upscaling..." : "Upscale Image"}
                 </button>
@@ -453,7 +494,7 @@ export default function ImageStudioPage() {
                     onChange={(e) => setSteps(Number(e.target.value))}
                     className="w-full accent-purple-500" />
                 </div>
-                <button onClick={doRestyle} disabled={!image || !prompt.trim() || loading}
+                <button onClick={doRestyle} disabled={!image || !prompt.trim() || loading || !sdReady}
                   className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
                   {loading ? "Restyling..." : "Restyle Image"}
                 </button>
@@ -476,7 +517,7 @@ export default function ImageStudioPage() {
                     onChange={(e) => setInpaintDenoising(Number(e.target.value))}
                     className="w-full accent-purple-500" />
                 </div>
-                <button onClick={doInpaint} disabled={!image || !mask || !inpaintPrompt.trim() || loading}
+                <button onClick={doInpaint} disabled={!image || !mask || !inpaintPrompt.trim() || loading || !sdReady}
                   className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
                   {loading ? "Inpainting..." : "Inpaint Selection"}
                 </button>
@@ -493,7 +534,7 @@ export default function ImageStudioPage() {
                     <option value="deepdanbooru">DeepDanbooru (anime tags)</option>
                   </select>
                 </div>
-                <button onClick={doCaption} disabled={!image || loading}
+                <button onClick={doCaption} disabled={!image || loading || !sdReady}
                   className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
                   {loading ? "Analyzing..." : "Generate Caption"}
                 </button>
