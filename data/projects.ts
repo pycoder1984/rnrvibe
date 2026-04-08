@@ -171,4 +171,13 @@ export const projects: Project[] = [
     tags: ["React", "Syntax Highlighting", "LocalStorage"],
     difficulty: "Intermediate",
   },
+  {
+    href: "/projects/ai-trading-strategy",
+    title: "AI Trading Strategy Advisor",
+    description: "Get AI-powered technical analysis, options strategy suggestions, and risk assessments for US stocks using Gemma 4.",
+    time: "~15 min",
+    icon: "\u{1F4C8}",
+    tags: ["AI", "Ollama", "Finance", "Streaming"],
+    difficulty: "Advanced",
+  },
 ];
