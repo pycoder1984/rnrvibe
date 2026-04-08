@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: process.env.OLLAMA_MODEL || "gemma4:e4b",
+          model: process.env.OLLAMA_MODEL || "gemma3:4b",
           prompt: cleanPrompt,
           system: systemPrompt,
           stream: true,
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env.OLLAMA_MODEL || "gemma4:e4b",
+        model: process.env.OLLAMA_MODEL || "gemma3:4b",
         prompt: cleanPrompt,
         system: systemPrompt,
         stream: false,
