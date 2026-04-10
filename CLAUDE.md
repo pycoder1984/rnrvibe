@@ -74,7 +74,7 @@ All optional — defaults work for standard local setup:
 | `OLLAMA_MODEL` | `gemma4:e4b` | Model for chat (note: `lib/llm-provider.ts` currently defaults to `gemma3:4b` — env var overrides) |
 | `SD_URL` | `http://127.0.0.1:7860` | Stable Diffusion WebUI API |
 | `OPENROUTER_API_KEY` | (none) | Enables cloud LLM fallback |
-| `OPENROUTER_MODEL` | `qwen/qwen3-plus:free` | Cloud fallback model |
+| `OPENROUTER_MODEL` | (none — tries fallback list) | Override to force a single OpenRouter model; when unset, `lib/llm-provider.ts` rotates through `FREE_MODELS` until one responds |
 
 ## Things to watch out for
 
@@ -83,3 +83,24 @@ All optional — defaults work for standard local setup:
 - System has ~14.5 GB available RAM — large LLM models (8B+) may not load. Stick to efficient models.
 - `data/generated-images/`, `data/subscribers.json`, and `*.jsonl` logs are gitignored.
 - The default model in `lib/llm-provider.ts` (`gemma3:4b`) differs from the CLAUDE.md/README stated default (`gemma4:e4b`). The env var `OLLAMA_MODEL` is what actually controls the model in production.
+- OpenRouter free models rotate frequently. If the fallback list in `lib/llm-provider.ts` (`FREE_MODELS`) goes stale, update it by fetching `https://openrouter.ai/api/v1/models` and filtering for `:free` IDs.
+
+## Hero section — scroll-controlled video
+
+The homepage hero (`app/page.tsx`) uses `components/ScrollVideo.tsx`, a canvas + image-sequence scrubber. Browsers can only seek MP4 `currentTime` to keyframes, which stutters; painting pre-extracted JPEG frames to a canvas gives smooth forward/reverse scrubbing.
+
+- Frames live in `public/hero-frames/frame_0001.jpg` … `frame_0169.jpg` (169 frames, ~7 MB total)
+- Extracted with: `ffmpeg -i public/hero-video.mp4 -vf "scale=960:-1" -q:v 6 public/hero-frames/frame_%04d.jpg`
+- The hero `<section>` is 250vh tall with a sticky inner container — this gives scroll room to play through the frames while the content stays pinned
+- `FRAME_COUNT` in `ScrollVideo.tsx` must match the number of files in `public/hero-frames/` if the video is ever replaced
+
+## Pending enhancements (hero page)
+
+Ideas to explore later — not a commitment, just a parking lot:
+
+- **Parallax text layers** — hero title and subtitle move at different speeds on scroll for depth
+- **Split-text reveal** — words/letters animate in as the hero section scrolls into view
+- **Morphing gradient background** — slow-shifting purple/indigo gradient via CSS `@keyframes`
+- **Rotating tagline** — cycle through phrases like "Code with the vibe / Build with the flow / Ship with confidence"
+- **3D tilt on CTA buttons** — mouse-follow perspective transform (reuse `components/TiltCard.tsx`)
+- **Scroll-triggered stats counter** — "27 Tools / 18 Projects / 26 Guides" counting up as they enter viewport

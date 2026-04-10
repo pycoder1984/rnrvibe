@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Particles from "@/components/Particles";
+import ScrollVideo from "@/components/ScrollVideo";
 import TiltCard from "@/components/TiltCard";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import SearchModal from "@/components/SearchModal";
@@ -106,20 +107,11 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Hero with scroll-driven video */}
-      <section className="relative">
-        <div className="relative flex items-center justify-center overflow-hidden" style={{ minHeight: "100dvh" }}>
-          {/* Video background - autoplay loop */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-contain sm:object-cover opacity-60"
-          >
-            <source src="/hero-video.mp4" type="video/mp4" />
-          </video>
+      {/* Hero with scroll-driven video — section is 250vh to give scroll room */}
+      <section className="relative" style={{ height: "250vh" }}>
+        <div className="sticky top-0 h-screen flex items-center justify-center overflow-hidden">
+          {/* Scroll-controlled video via canvas + image sequence */}
+          <ScrollVideo className="absolute inset-0 w-full h-full opacity-60" />
 
           {/* Floating code particles */}
           <Particles />
