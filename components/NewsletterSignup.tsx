@@ -1,5 +1,5 @@
 "use client";
-import { API_BASE } from "@/lib/api-config";
+import { getApiBase } from "@/lib/api-config";
 
 import { useState } from "react";
 
@@ -12,7 +12,7 @@ export default function NewsletterSignup({ compact = false }: { compact?: boolea
     if (!email) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/newsletter`, {
+      const res = await fetch(`${getApiBase()}/api/newsletter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

@@ -1,5 +1,5 @@
 "use client";
-import { API_BASE } from "@/lib/api-config";
+import { getApiBase } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -278,7 +278,7 @@ export default function ImageStudioPage() {
     setSdChecking(true);
     setSdError("");
     try {
-      const res = await fetch(`${API_BASE}/api/image-studio`, { signal: AbortSignal.timeout(10000) });
+      const res = await fetch(`${getApiBase()}/api/image-studio`, { signal: AbortSignal.timeout(10000) });
       const data = await res.json();
       if (data.upscalers) {
         setUpscalers(data.upscalers);
@@ -319,7 +319,7 @@ export default function ImageStudioPage() {
     setResult("");
     setCaption("");
     try {
-      const res = await fetch(`${API_BASE}/api/image-studio`, {
+      const res = await fetch(`${getApiBase()}/api/image-studio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

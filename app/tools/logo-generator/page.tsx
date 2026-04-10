@@ -1,5 +1,5 @@
 "use client";
-import { API_BASE } from "@/lib/api-config";
+import { getApiBase } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -75,7 +75,7 @@ export default function LogoGeneratorPage() {
     setSdChecking(true);
     setSdError("");
     try {
-      const res = await fetch(`${API_BASE}/api/sd-models`, { signal: AbortSignal.timeout(10000) });
+      const res = await fetch(`${getApiBase()}/api/sd-models`, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Connection failed" }));
         setSdError(data.error || "Stable Diffusion is not responding.");
@@ -130,7 +130,7 @@ export default function LogoGeneratorPage() {
     abortRef.current = new AbortController();
 
     try {
-      const res = await fetch(`${API_BASE}/api/generate-logo`, {
+      const res = await fetch(`${getApiBase()}/api/generate-logo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

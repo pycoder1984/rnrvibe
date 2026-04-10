@@ -20,11 +20,16 @@ export async function GET(req: NextRequest) {
     ollamaStatus = "unreachable";
   }
 
+  const activeProvider = ollamaStatus === "connected"
+    ? "ollama"
+    : process.env.OPENROUTER_API_KEY ? "openrouter" : "none";
+
   return NextResponse.json({
     status: "ok",
     startedAt,
     uptime: process.uptime(),
     ollama: ollamaStatus,
+    activeProvider,
     timestamp: new Date().toISOString(),
   });
 }

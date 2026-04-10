@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addLog } from "@/lib/request-log";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
+import { generate } from "@/lib/llm-provider";
 
 export const dynamic = "force-dynamic";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:4b";
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
 
-const OLLAMA_TIMEOUT_MS = 30_000;
+const LLM_TIMEOUT_MS = 30_000;
 const SD_TIMEOUT_MS = 3 * 60 * 1000;
 const TOTAL_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -77,7 +76,7 @@ const STYLE_KEYWORDS: Record<string, string> = {
   gradient: "gradient colors, modern gradient, vibrant, colorful, smooth transitions",
 };
 
-async function generatePromptsWithOllama(
+async function generatePromptsWithLLM(
   brandName: string,
   industry: string,
   description: string,
@@ -113,23 +112,11 @@ Colors: ${colorNames}
 Styles to generate: ${styles.join(", ")}
 Generate the ${styles.length} SD prompts now as a JSON array.`;
 
-  const res = await fetch(`${OLLAMA_URL}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      prompt: userPrompt,
-      system: systemPrompt,
-      stream: false,
-      options: { temperature: 0.8, num_predict: 2048 },
-    }),
-    signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS),
+  const { text: raw } = await generate({
+    prompt: userPrompt,
+    system: systemPrompt,
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
-
-  if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
-
-  const data = await res.json();
-  const raw: string = data.response || "";
 
   // Try JSON.parse, fallback to regex extraction
   let prompts: LogoPrompt[];
@@ -264,7 +251,7 @@ export async function POST(req: NextRequest) {
 
         let prompts: LogoPrompt[];
         try {
-          prompts = await generatePromptsWithOllama(brandName, industry, description, colors, styles, background);
+          prompts = await generatePromptsWithLLM(brandName, industry, description, colors, styles, background);
         } catch (err) {
           send("error", { index: -1, style: "", error: `Failed to generate prompts: ${err instanceof Error ? err.message : "Unknown error"}` });
           addLog({

@@ -8,8 +8,8 @@ import {
 } from "@/lib/guardrails";
 import { addLog } from "@/lib/request-log";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
+import { streamGenerate, generate } from "@/lib/llm-provider";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60 * 1000;
 
@@ -78,38 +78,21 @@ export async function POST(req: NextRequest) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 300000);
 
-      const res = await fetch(`${OLLAMA_URL}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: process.env.OLLAMA_MODEL || "gemma3:4b",
-          prompt: cleanPrompt,
-          system: systemPrompt,
-          stream: true,
-          options: { temperature: 0.7, num_predict: 2048 },
-        }),
+      const { provider, body } = await streamGenerate({
+        prompt: cleanPrompt,
+        system: systemPrompt,
         signal: controller.signal,
       });
 
       clearTimeout(timeout);
 
-      if (!res.ok || !res.body) {
-        const elapsed = Date.now() - startTime;
-        addLog({
-          timestamp: new Date().toISOString(), ip, tool,
-          prompt: cleanPrompt.slice(0, 500), response: "",
-          responseTimeMs: elapsed, status: "error",
-          error: "AI service unavailable (502)",
-        });
-        return NextResponse.json(
-          { error: "AI service is temporarily unavailable" },
-          { status: 502, headers: rateLimitHeaders(remaining, resetTime) }
-        );
-      }
-
       let fullResponse = "";
-      const reader = res.body.getReader();
+      const reader = body.getReader();
       const decoder = new TextDecoder();
+
+      // OpenRouter uses SSE format: "data: {json}\n\n"
+      // Ollama uses NDJSON: "{json}\n"
+      let sseBuffer = "";
 
       const stream = new ReadableStream({
         async start(streamController) {
@@ -119,18 +102,17 @@ export async function POST(req: NextRequest) {
               if (done) break;
 
               const chunk = decoder.decode(value, { stream: true });
-              const lines = chunk.split("\n").filter(Boolean);
 
-              for (const line of lines) {
-                try {
-                  const json = JSON.parse(line);
-                  if (json.response) {
-                    fullResponse += json.response;
-                    streamController.enqueue(
-                      new TextEncoder().encode(`data: ${JSON.stringify({ token: json.response })}\n\n`)
-                    );
-                  }
-                  if (json.done) {
+              if (provider === "openrouter") {
+                sseBuffer += chunk;
+                const sseLines = sseBuffer.split("\n");
+                sseBuffer = sseLines.pop() || "";
+
+                for (const line of sseLines) {
+                  const trimmed = line.trim();
+                  if (!trimmed || !trimmed.startsWith("data: ")) continue;
+                  const payload = trimmed.slice(6);
+                  if (payload === "[DONE]") {
                     const elapsed = Date.now() - startTime;
                     const safeResponse = filterOutput(fullResponse);
                     addLog({
@@ -142,9 +124,49 @@ export async function POST(req: NextRequest) {
                     streamController.enqueue(
                       new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`)
                     );
+                    continue;
                   }
-                } catch {
-                  // skip malformed JSON lines
+                  try {
+                    const json = JSON.parse(payload);
+                    const token = json.choices?.[0]?.delta?.content;
+                    if (token) {
+                      fullResponse += token;
+                      streamController.enqueue(
+                        new TextEncoder().encode(`data: ${JSON.stringify({ token })}\n\n`)
+                      );
+                    }
+                  } catch {
+                    // skip malformed SSE lines
+                  }
+                }
+              } else {
+                // Ollama NDJSON format
+                const lines = chunk.split("\n").filter(Boolean);
+                for (const line of lines) {
+                  try {
+                    const json = JSON.parse(line);
+                    if (json.response) {
+                      fullResponse += json.response;
+                      streamController.enqueue(
+                        new TextEncoder().encode(`data: ${JSON.stringify({ token: json.response })}\n\n`)
+                      );
+                    }
+                    if (json.done) {
+                      const elapsed = Date.now() - startTime;
+                      const safeResponse = filterOutput(fullResponse);
+                      addLog({
+                        timestamp: new Date().toISOString(), ip, tool,
+                        prompt: cleanPrompt.slice(0, 500),
+                        response: safeResponse.slice(0, 500),
+                        responseTimeMs: elapsed, status: "success",
+                      });
+                      streamController.enqueue(
+                        new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`)
+                      );
+                    }
+                  } catch {
+                    // skip malformed JSON lines
+                  }
                 }
               }
             }
@@ -190,37 +212,15 @@ export async function POST(req: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 300000);
 
-    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.OLLAMA_MODEL || "gemma3:4b",
-        prompt: cleanPrompt,
-        system: systemPrompt,
-        stream: false,
-        options: { temperature: 0.7, num_predict: 2048 },
-      }),
+    const { text } = await generate({
+      prompt: cleanPrompt,
+      system: systemPrompt,
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
     const elapsed = Date.now() - startTime;
-
-    if (!res.ok) {
-      addLog({
-        timestamp: new Date().toISOString(), ip, tool,
-        prompt: cleanPrompt.slice(0, 500), response: "",
-        responseTimeMs: elapsed, status: "error",
-        error: "AI service unavailable (502)",
-      });
-      return NextResponse.json(
-        { error: "AI service is temporarily unavailable" },
-        { status: 502, headers: rateLimitHeaders(remaining, resetTime) }
-      );
-    }
-
-    const data = await res.json();
-    const safeResponse = filterOutput(data.response);
+    const safeResponse = filterOutput(text);
 
     addLog({
       timestamp: new Date().toISOString(), ip, tool,

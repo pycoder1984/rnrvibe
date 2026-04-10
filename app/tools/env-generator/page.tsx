@@ -1,5 +1,5 @@
 "use client";
-import { API_BASE } from "@/lib/api-config";
+import { getApiBase } from "@/lib/api-config";
 
 import BlogNav from "@/components/BlogNav";
 import { useState } from "react";
@@ -18,7 +18,7 @@ export default function EnvGeneratorPage() {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(`${getApiBase()}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
