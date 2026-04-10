@@ -85,14 +85,14 @@ All optional — defaults work for standard local setup:
 - The default model in `lib/llm-provider.ts` (`gemma3:4b`) differs from the CLAUDE.md/README stated default (`gemma4:e4b`). The env var `OLLAMA_MODEL` is what actually controls the model in production.
 - OpenRouter free models rotate frequently. If the fallback list in `lib/llm-provider.ts` (`FREE_MODELS`) goes stale, update it by fetching `https://openrouter.ai/api/v1/models` and filtering for `:free` IDs.
 
-## Hero section — scroll-controlled video
+## Scroll-controlled background video
 
-The homepage hero (`app/page.tsx`) uses `components/ScrollVideo.tsx`, a canvas + image-sequence scrubber. Browsers can only seek MP4 `currentTime` to keyframes, which stutters; painting pre-extracted JPEG frames to a canvas gives smooth forward/reverse scrubbing.
+`components/ScrollVideo.tsx` is a canvas + image-sequence scrubber mounted at the top of `app/page.tsx` as a `fixed` full-viewport background. Browsers can only seek MP4 `currentTime` to keyframes, which stutters; painting pre-extracted JPEG frames to a canvas gives smooth forward/reverse scrubbing.
 
 - Frames live in `public/hero-frames/frame_0001.jpg` … `frame_0169.jpg` (169 frames, ~7 MB total)
 - Extracted with: `ffmpeg -i public/hero-video.mp4 -vf "scale=960:-1" -q:v 6 public/hero-frames/frame_%04d.jpg`
-- The hero `<section>` is 250vh tall with a sticky inner container — this gives scroll room to play through the frames while the content stays pinned
-- `FRAME_COUNT` in `ScrollVideo.tsx` must match the number of files in `public/hero-frames/` if the video is ever replaced
+- Scroll mapping: document-wide — frame 0 at the top of the page, frame 168 at the bottom. The canvas is `fixed inset-0` so it stays visible behind all content as the user scrolls.
+- `FRAME_COUNT` in `ScrollVideo.tsx` must match the number of files in `public/hero-frames/` if the video is ever replaced.
 
 ## Pending enhancements (hero page)
 

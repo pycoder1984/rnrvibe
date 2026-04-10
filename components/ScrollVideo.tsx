@@ -88,7 +88,7 @@ export default function ScrollVideo({ className = "" }: { className?: string }) 
     ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
   };
 
-  // Scroll → frame mapping
+  // Scroll → frame mapping (tracks full document scroll, not a specific section)
   useEffect(() => {
     const handleScroll = () => {
       if (rafRef.current !== null) return;
@@ -97,18 +97,10 @@ export default function ScrollVideo({ className = "" }: { className?: string }) 
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Find the parent section — frame progression happens while scrolling through it
-        const section = canvas.closest("section");
-        if (!section) return;
-
-        const rect = section.getBoundingClientRect();
-        const windowH = window.innerHeight;
-
-        // Scroll progress: 0 when section top hits viewport top,
-        // 1 when section bottom hits viewport top
-        const totalScrollable = rect.height;
-        const scrolledPast = -rect.top;
-        const progress = Math.max(0, Math.min(1, scrolledPast / totalScrollable));
+        // Document-wide scroll progress: 0 at top, 1 at bottom
+        const scrollY = window.scrollY;
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = maxScroll > 0 ? Math.max(0, Math.min(1, scrollY / maxScroll)) : 0;
 
         const targetFrame = Math.min(
           FRAME_COUNT - 1,

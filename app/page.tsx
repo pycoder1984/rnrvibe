@@ -52,6 +52,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white overflow-x-hidden">
+      {/* Fixed scroll-controlled video background — plays through as you scroll the entire page */}
+      <ScrollVideo className="fixed inset-0 w-full h-full opacity-30 pointer-events-none" />
+
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/60 backdrop-blur-xl border-b border-white/5">
         <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
@@ -107,11 +110,9 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Hero with scroll-driven video — section is 250vh to give scroll room */}
-      <section className="relative" style={{ height: "250vh" }}>
-        <div className="sticky top-0 h-screen flex items-center justify-center overflow-hidden">
-          {/* Scroll-controlled video via canvas + image sequence */}
-          <ScrollVideo className="absolute inset-0 w-full h-full opacity-60" />
+      {/* Hero */}
+      <section className="relative">
+        <div className="relative flex items-center justify-center overflow-hidden" style={{ minHeight: "100dvh" }}>
 
           {/* Floating code particles */}
           <Particles />
