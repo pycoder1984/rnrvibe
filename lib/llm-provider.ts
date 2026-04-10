@@ -10,7 +10,7 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:4b";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "qwen/qwen3-plus:free";
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-nano-30b-a3b:free";
 
 let ollamaAvailable: boolean | null = null;
 let lastOllamaCheck = 0;
