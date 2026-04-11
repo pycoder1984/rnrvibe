@@ -94,13 +94,15 @@ All optional — defaults work for standard local setup:
 - Scroll mapping: document-wide — frame 0 at the top of the page, frame 168 at the bottom. The canvas is `fixed inset-0` so it stays visible behind all content as the user scrolls.
 - `FRAME_COUNT` in `ScrollVideo.tsx` must match the number of files in `public/hero-frames/` if the video is ever replaced.
 
-## Pending enhancements (hero page)
+## Hero page motion system
 
-Ideas to explore later — not a commitment, just a parking lot:
+The hero combines six coordinated effects. Keep them working together when editing `app/page.tsx`:
 
-- **Parallax text layers** — hero title and subtitle move at different speeds on scroll for depth
-- **Split-text reveal** — words/letters animate in as the hero section scrolls into view
-- **Morphing gradient background** — slow-shifting purple/indigo gradient via CSS `@keyframes`
-- **Rotating tagline** — cycle through phrases like "Code with the vibe / Build with the flow / Ship with confidence"
-- **3D tilt on CTA buttons** — mouse-follow perspective transform (reuse `components/TiltCard.tsx`)
-- **Scroll-triggered stats counter** — "27 Tools / 18 Projects / 26 Guides" counting up as they enter viewport
+- **Parallax layers** — `parallaxBadgeRef` / `parallaxTitleRef` / `parallaxSubtitleRef` / `parallaxCtaRef` each get a different `translate3d` factor in the scroll rAF loop. The refs are on wrapper divs (not the animated elements themselves) so the CSS entrance animations aren't clobbered by inline transforms.
+- **Split-text reveal** — `components/RotatingTagline.tsx` renders each word as a `<span class="split-word">` with a `--i` index. The `.split-word` keyframe in `globals.css` staggers them on mount. Re-mounting via `key={index}` re-triggers the animation on each phrase change.
+- **Rotating tagline** — `RotatingTagline` cycles `phrases` on an interval (default 4500ms). Each phrase is `{ prefix, highlight }`; the highlight gets the purple→indigo gradient.
+- **Morphing gradient** — `.morph-gradient` in `globals.css` animates `background-position` on a multi-stop linear gradient. Placed behind the hero content at `zIndex: 1`.
+- **3D tilt CTAs** — the hero CTA buttons are wrapped in `<TiltCard href=...>` which handles the perspective/rotate transform on mouse move. Don't use `hover:-translate-y-*` on tilt cards — the JS transform will override it anyway.
+- **Stats counter** — `components/StatsCounter.tsx` uses IntersectionObserver + `requestAnimationFrame` to count from 0 to each target value with ease-out-cubic when it enters the viewport. Values live in the `<StatsCounter stats={...} />` call in the hero section of `app/page.tsx` — update them when tool/project/post counts change.
+
+All of these respect `prefers-reduced-motion` via the media query at the bottom of `globals.css` (plus a matching check in `StatsCounter.tsx` that jumps straight to final values).

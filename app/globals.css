@@ -215,6 +215,71 @@ body {
   animation: glowPulse 3s ease-in-out infinite;
 }
 
+/* Split-text word reveal — each word animates in with a stagger via --i */
+.split-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.55em);
+  animation: wordReveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+  will-change: transform, opacity;
+}
+
+@keyframes wordReveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.55em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Morphing purple/indigo gradient backdrop for the hero */
+.morph-gradient {
+  background: linear-gradient(
+    125deg,
+    rgba(168, 85, 247, 0.20) 0%,
+    rgba(99, 102, 241, 0.14) 25%,
+    rgba(139, 92, 246, 0.20) 50%,
+    rgba(79, 70, 229, 0.12) 75%,
+    rgba(168, 85, 247, 0.20) 100%
+  );
+  background-size: 300% 300%;
+  animation: morphGradient 14s ease-in-out infinite;
+}
+
+@keyframes morphGradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Accessibility — honor prefers-reduced-motion for all the hero animations */
+@media (prefers-reduced-motion: reduce) {
+  .split-word,
+  .morph-gradient,
+  .hero-badge,
+  .hero-title,
+  .hero-subtitle,
+  .hero-cta,
+  .glow-pulse,
+  .section-reveal,
+  .section-reveal.revealed > div > div > *,
+  .section-reveal.revealed > div > .grid > * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .split-word {
+    opacity: 1;
+    transform: none;
+  }
+  .section-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Syntax highlighting for code blocks in prose */
 .prose pre {
   position: relative;

@@ -6,9 +6,19 @@ import ScrollVideo from "@/components/ScrollVideo";
 import TiltCard from "@/components/TiltCard";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import SearchModal from "@/components/SearchModal";
+import RotatingTagline from "@/components/RotatingTagline";
+import StatsCounter from "@/components/StatsCounter";
 
 export default function Home() {
   const sectionsRef = useRef<(HTMLElement | null)[]>([]);
+
+  // Parallax layer refs — each hero element scrolls at a different speed.
+  // Transforms are applied via ref + rAF (not React state) to avoid re-rendering
+  // the whole page on every scroll event.
+  const parallaxBadgeRef = useRef<HTMLDivElement>(null);
+  const parallaxTitleRef = useRef<HTMLDivElement>(null);
+  const parallaxSubtitleRef = useRef<HTMLDivElement>(null);
+  const parallaxCtaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Intersection Observer for section reveal animations
@@ -29,6 +39,43 @@ export default function Home() {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    // Hero parallax — small factors so the text lags behind the scroll,
+    // giving a subtle depth effect as the user leaves the hero.
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    if (prefersReducedMotion) return;
+
+    let raf = 0;
+    const update = () => {
+      const y = window.scrollY;
+      if (parallaxBadgeRef.current) {
+        parallaxBadgeRef.current.style.transform = `translate3d(0, ${y * 0.25}px, 0)`;
+      }
+      if (parallaxTitleRef.current) {
+        parallaxTitleRef.current.style.transform = `translate3d(0, ${y * 0.12}px, 0)`;
+      }
+      if (parallaxSubtitleRef.current) {
+        parallaxSubtitleRef.current.style.transform = `translate3d(0, ${y * 0.18}px, 0)`;
+      }
+      if (parallaxCtaRef.current) {
+        parallaxCtaRef.current.style.transform = `translate3d(0, ${y * 0.06}px, 0)`;
+      }
+      raf = 0;
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -117,6 +164,9 @@ export default function Home() {
           {/* Floating code particles */}
           <Particles />
 
+          {/* Morphing purple/indigo gradient — slow shift underneath everything */}
+          <div className="morph-gradient absolute inset-0 pointer-events-none" style={{ zIndex: 1 }} />
+
           {/* Gradient overlays */}
           <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-transparent to-neutral-950" style={{ zIndex: 2 }} />
           <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/80 via-transparent to-neutral-950/80" style={{ zIndex: 2 }} />
@@ -126,34 +176,43 @@ export default function Home() {
 
           {/* Hero content */}
           <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl mx-auto">
-            <div className="hero-badge inline-block px-5 py-2 mb-8 text-xs font-semibold uppercase tracking-widest text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded-full">
-              Lightweight Vibecoding Platform
+            <div ref={parallaxBadgeRef} className="will-change-transform">
+              <div className="hero-badge inline-block px-5 py-2 mb-8 text-xs font-semibold uppercase tracking-widest text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded-full">
+                Lightweight Vibecoding Platform
+              </div>
             </div>
-            <h1 className="hero-title text-5xl sm:text-6xl md:text-8xl font-bold tracking-tighter leading-[0.9]">
-              Code with the
-              <br />
-              <span className="bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-400 bg-clip-text text-transparent">
-                vibe
-              </span>
-            </h1>
-            <p className="hero-subtitle mt-8 text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed">
-              RnR Vibe is a lightweight platform that lets you vibecode your ideas into reality.
-              No bloat. No friction. Just you, your code, and the flow.
-            </p>
-            <div className="hero-cta flex flex-col sm:flex-row gap-4 mt-12">
-              <a
-                href="/tools"
-                className="glow-pulse group relative px-8 py-4 bg-purple-500 text-white font-semibold rounded-xl transition-all duration-300 hover:bg-purple-600 hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] hover:-translate-y-0.5"
-              >
-                Try Free Tools
-                <span className="absolute inset-0 rounded-xl bg-purple-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </a>
-              <a
-                href="#features"
-                className="px-8 py-4 bg-white/5 hover:bg-white/10 text-neutral-200 font-semibold rounded-xl border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-0.5"
-              >
-                Learn More
-              </a>
+            <div ref={parallaxTitleRef} className="will-change-transform">
+              <RotatingTagline
+                className="text-5xl sm:text-6xl md:text-8xl font-bold tracking-tighter leading-[0.9]"
+                phrases={[
+                  { prefix: "Code with the", highlight: "vibe" },
+                  { prefix: "Build with the", highlight: "flow" },
+                  { prefix: "Ship with", highlight: "confidence" },
+                ]}
+              />
+            </div>
+            <div ref={parallaxSubtitleRef} className="will-change-transform">
+              <p className="hero-subtitle mt-8 text-lg md:text-xl text-neutral-400 max-w-2xl leading-relaxed">
+                RnR Vibe is a lightweight platform that lets you vibecode your ideas into reality.
+                No bloat. No friction. Just you, your code, and the flow.
+              </p>
+            </div>
+            <div ref={parallaxCtaRef} className="will-change-transform">
+              <div className="hero-cta flex flex-col sm:flex-row gap-4 mt-12 justify-center">
+                <TiltCard
+                  href="/tools"
+                  className="glow-pulse group relative inline-flex items-center justify-center px-8 py-4 bg-purple-500 text-white font-semibold rounded-xl transition-colors duration-300 hover:bg-purple-600 hover:shadow-[0_0_40px_rgba(168,85,247,0.4)]"
+                >
+                  <span className="relative z-10">Try Free Tools</span>
+                  <span className="absolute inset-0 rounded-xl bg-purple-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </TiltCard>
+                <TiltCard
+                  href="#features"
+                  className="group relative inline-flex items-center justify-center px-8 py-4 bg-white/5 hover:bg-white/10 text-neutral-200 font-semibold rounded-xl border border-white/10 hover:border-white/20 transition-colors duration-300"
+                >
+                  <span className="relative z-10">Learn More</span>
+                </TiltCard>
+              </div>
             </div>
           </div>
 
@@ -165,6 +224,18 @@ export default function Home() {
             </svg>
           </div>
         </div>
+      </section>
+
+      {/* Stats — counts up as this section enters the viewport */}
+      <section className="relative z-10 px-6 pt-8 pb-16 sm:pt-12 sm:pb-20 max-w-5xl mx-auto">
+        <StatsCounter
+          stats={[
+            { label: "AI Tools", value: 27 },
+            { label: "Projects", value: 18 },
+            { label: "Blog Posts", value: 26 },
+            { label: "Guides", value: 23 },
+          ]}
+        />
       </section>
 
       {/* Features */}
