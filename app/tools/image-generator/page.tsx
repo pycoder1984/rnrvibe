@@ -243,6 +243,57 @@ export default function ImageGeneratorPage() {
     return title.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
   };
 
+  // Short, one-line description of a model based on its filename.
+  // SD model families can't be detected from metadata alone, so we pattern-match
+  // the title against common checkpoint names.
+  const getModelHint = (title: string): string => {
+    const t = title.toLowerCase();
+
+    // SDXL family (1024 native)
+    const isXL =
+      t.includes("sdxl") ||
+      t.includes("sd_xl") ||
+      t.includes("sd-xl") ||
+      /(^|[^a-z])xl([^a-z]|$)/.test(t);
+
+    if (isXL) {
+      if (t.includes("turbo")) return "SDXL Turbo — very fast, 1-4 steps, 1024px native";
+      if (t.includes("lightning")) return "SDXL Lightning — fast, 4-8 steps, 1024px native";
+      if (t.includes("juggernaut")) return "SDXL photorealism — great for people & scenes, 1024px";
+      if (t.includes("dreamshaper")) return "SDXL artistic & versatile — 1024px native";
+      if (t.includes("realvis") || t.includes("realvisxl")) return "SDXL photorealism — 1024px native";
+      if (t.includes("animagine") || t.includes("pony")) return "SDXL anime / illustration — 1024px native";
+      return "SDXL — high quality, 1024x1024 native resolution";
+    }
+
+    if (t.includes("flux")) return "FLUX — high quality, strong prompt following";
+    if (t.includes("sd3") || t.includes("sd_3")) return "SD 3 — 1024px native";
+    if (t.includes("2.1") || t.includes("v2-1") || t.includes("v2_1")) return "SD 2.1 — 768x768 native";
+
+    // SD 1.5 family (512 native)
+    if (t.includes("dreamshaper")) return "SD 1.5 artistic & versatile — 512px native";
+    if (t.includes("realistic") && t.includes("vision")) return "SD 1.5 photorealistic portraits — try 512x768";
+    if (t.includes("epicrealism") || t.includes("epic_realism")) return "SD 1.5 photorealism — great for people";
+    if (t.includes("deliberate")) return "SD 1.5 balanced, versatile style — 512px native";
+    if (t.includes("juggernaut")) return "Photorealism — strong on portraits and scenes";
+    if (t.includes("analog")) return "Film photography aesthetic — 512px native";
+    if (t.includes("protogen")) return "Artistic, painterly styles — 512px native";
+    if (
+      t.includes("anything") ||
+      t.includes("counterfeit") ||
+      t.includes("meina") ||
+      t.includes("anime") ||
+      (t.includes("rev") && t.includes("anim"))
+    ) {
+      return "Anime / illustration style — 512px native";
+    }
+    if (t.includes("1.5") || t.includes("v1-5") || t.includes("v1_5")) {
+      return "SD 1.5 base — 512x512 native, fastest to run";
+    }
+
+    return "General-purpose checkpoint — try 512x512 or 768x768";
+  };
+
   const RESOLUTIONS = [
     { label: "512x512", w: 512, h: 512 },
     { label: "512x768", w: 512, h: 768 },
@@ -262,7 +313,7 @@ export default function ImageGeneratorPage() {
 
         {/* Connection Status / Model Selection */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-semibold text-neutral-300">
               Select Models <span className="text-neutral-500">({selectedModels.length}/4)</span>
             </h2>
@@ -274,6 +325,9 @@ export default function ImageGeneratorPage() {
               {modelsLoading ? "Connecting..." : "Refresh"}
             </button>
           </div>
+          <p className="text-xs text-neutral-500 mb-3">
+            Pick 1-4 checkpoints. Each one has its own style — SDXL models are higher quality but need 1024px, SD 1.5 models are faster at 512px. Selecting multiple generates the same prompt with each for side-by-side comparison.
+          </p>
 
           {modelsError && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300 mb-4">
@@ -297,7 +351,7 @@ export default function ImageGeneratorPage() {
           )}
 
           {!modelsLoading && models.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-72 overflow-y-auto">
               {models.map((model) => {
                 const selected = selectedModels.includes(model.title);
                 return (
@@ -305,14 +359,17 @@ export default function ImageGeneratorPage() {
                     key={model.title}
                     onClick={() => toggleModel(model.title)}
                     disabled={!selected && selectedModels.length >= 4}
-                    className={`text-left p-3 rounded-lg border text-xs transition truncate ${
+                    className={`text-left p-3 rounded-lg border text-xs transition ${
                       selected
                         ? "border-purple-500 bg-purple-500/20 text-purple-300"
                         : "border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed"
                     }`}
-                    title={model.title}
+                    title={`${model.title}\n\n${getModelHint(model.title)}`}
                   >
                     <div className="font-medium truncate">{modelShortName(model.title)}</div>
+                    <div className={`text-[10px] mt-0.5 leading-snug ${selected ? "text-purple-300/70" : "text-neutral-500"}`}>
+                      {getModelHint(model.title)}
+                    </div>
                     {model.loaded && (
                       <span className="text-green-400 text-[10px]">Currently loaded</span>
                     )}
@@ -333,6 +390,9 @@ export default function ImageGeneratorPage() {
         <div className="space-y-4 mb-6">
           <div>
             <label className="block text-sm text-neutral-400 mb-1">Prompt</label>
+            <p className="text-xs text-neutral-500 mb-2">
+              Describe what you want to see. Be specific — subject, style, lighting, colors, and quality words (e.g. &quot;photorealistic&quot;, &quot;cinematic&quot;, &quot;8k detail&quot;) work better than vague descriptions. Comma-separated keywords are standard.
+            </p>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -362,6 +422,9 @@ export default function ImageGeneratorPage() {
             <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 space-y-4">
               <div>
                 <label className="block text-sm text-neutral-400 mb-1">Negative Prompt</label>
+                <p className="text-xs text-neutral-500 mb-2">
+                  What you <em>don&apos;t</em> want in the image. The default covers the usual suspects (blur, deformities, low quality). Add things like &quot;text, watermark, extra fingers&quot; if you keep seeing them.
+                </p>
                 <textarea
                   value={negativePrompt}
                   onChange={(e) => setNegativePrompt(e.target.value)}
@@ -371,7 +434,10 @@ export default function ImageGeneratorPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-neutral-400 mb-2">Resolution</label>
+                <label className="block text-sm text-neutral-400 mb-1">Resolution</label>
+                <p className="text-xs text-neutral-500 mb-2">
+                  Match the model&apos;s native size for best quality: <strong>512x512</strong> for SD 1.5 models, <strong>1024x1024</strong> for SDXL. Going much larger can cause duplicated subjects. Portrait/landscape variants work well for framing.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {RESOLUTIONS.map((r) => (
                     <button
@@ -389,9 +455,9 @@ export default function ImageGeneratorPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-neutral-500 mb-1">Steps ({steps})</label>
+                  <label className="block text-xs text-neutral-400 mb-1">Steps ({steps})</label>
                   <input
                     type="range"
                     min={1}
@@ -400,9 +466,12 @@ export default function ImageGeneratorPage() {
                     onChange={(e) => setSteps(Number(e.target.value))}
                     className="w-full accent-purple-500"
                   />
+                  <p className="text-[10px] text-neutral-500 mt-1 leading-snug">
+                    How many denoising passes. <strong>20-30</strong> is the sweet spot for most models. More is slower and rarely better past ~40. Turbo/Lightning models only need 1-8.
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-xs text-neutral-500 mb-1">CFG Scale ({cfgScale})</label>
+                  <label className="block text-xs text-neutral-400 mb-1">CFG Scale ({cfgScale})</label>
                   <input
                     type="range"
                     min={1}
@@ -412,9 +481,12 @@ export default function ImageGeneratorPage() {
                     onChange={(e) => setCfgScale(Number(e.target.value))}
                     className="w-full accent-purple-500"
                   />
+                  <p className="text-[10px] text-neutral-500 mt-1 leading-snug">
+                    How strictly to follow the prompt. <strong>7-9</strong> is balanced. Lower = more creative/soft, higher = more literal but can look over-cooked or saturated.
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-xs text-neutral-500 mb-1">Seed</label>
+                  <label className="block text-xs text-neutral-400 mb-1">Seed</label>
                   <input
                     type="number"
                     value={seed}
@@ -422,6 +494,9 @@ export default function ImageGeneratorPage() {
                     placeholder="-1 for random"
                     className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-200 focus:border-purple-500/50 focus:outline-none"
                   />
+                  <p className="text-[10px] text-neutral-500 mt-1 leading-snug">
+                    The random starting point. Same seed + same prompt + same settings = identical image. Use <strong>-1</strong> for a new random seed every run.
+                  </p>
                 </div>
               </div>
             </div>
