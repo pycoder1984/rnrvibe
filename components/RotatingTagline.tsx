@@ -11,6 +11,9 @@ interface RotatingTaglineProps {
   phrases: Phrase[];
   intervalMs?: number;
   className?: string;
+  /** Heading level to render. Defaults to h1; use h2 when a real h1 already
+   *  exists on the page so the outline stays correct for SEO. */
+  as?: "h1" | "h2";
 }
 
 /**
@@ -22,6 +25,7 @@ export default function RotatingTagline({
   phrases,
   intervalMs = 4500,
   className = "",
+  as: Tag = "h1",
 }: RotatingTaglineProps) {
   const [index, setIndex] = useState(0);
 
@@ -40,7 +44,7 @@ export default function RotatingTagline({
     ({ ["--i" as string]: i } as CSSProperties);
 
   return (
-    <h1
+    <Tag
       className={className}
       aria-label={`${current.prefix} ${current.highlight}`}
     >
@@ -65,6 +69,6 @@ export default function RotatingTagline({
       >
         {current.highlight}
       </span>
-    </h1>
+    </Tag>
   );
 }

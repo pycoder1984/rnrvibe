@@ -19,6 +19,21 @@ export const metadata: Metadata = {
   },
   description:
     "Code with the vibe, ship with confidence. Free AI-powered vibecoding tools, guides, and resources. No sign-up required.",
+  applicationName: "RnR Vibe",
+  keywords: [
+    "rnrvibe",
+    "rnr vibe",
+    "RnR Vibe",
+    "RnRVibe",
+    "vibecoding",
+    "vibe coding",
+    "AI coding tools",
+    "local AI",
+    "Ollama",
+    "Stable Diffusion",
+    "free AI tools",
+    "AI developer tools",
+  ],
   metadataBase: new URL("https://www.rnrvibe.com"),
   openGraph: {
     type: "website",
@@ -47,10 +62,11 @@ export const metadata: Metadata = {
   },
 };
 
-const jsonLd = {
+const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "RnR Vibe",
+  alternateName: ["RnRVibe", "rnrvibe", "rnr vibe", "RNR Vibe"],
   url: "https://www.rnrvibe.com",
   description:
     "Lightweight vibecoding platform with free AI-powered tools, guides, and resources.",
@@ -59,6 +75,17 @@ const jsonLd = {
     target: "https://www.rnrvibe.com/blog?q={search_term_string}",
     "query-input": "required name=search_term_string",
   },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "RnR Vibe",
+  alternateName: ["RnRVibe", "rnrvibe", "rnr vibe", "RNR Vibe"],
+  url: "https://www.rnrvibe.com",
+  logo: "https://www.rnrvibe.com/favicon.ico",
+  description:
+    "RnR Vibe is a lightweight vibecoding platform offering free AI-powered tools, guides, and interactive projects for developers.",
 };
 
 export default function RootLayout({
@@ -71,7 +98,11 @@ export default function RootLayout({
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
         <link rel="alternate" type="application/rss+xml" title="RnR Vibe RSS Feed" href="/feed.xml" />
       </head>

@@ -177,12 +177,13 @@ export default function Home() {
           {/* Hero content */}
           <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl mx-auto">
             <div ref={parallaxBadgeRef} className="will-change-transform">
-              <div className="hero-badge inline-block px-5 py-2 mb-8 text-xs font-semibold uppercase tracking-widest text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded-full">
-                Lightweight Vibecoding Platform
-              </div>
+              <h1 className="hero-badge inline-block px-5 py-2 mb-8 text-xs font-semibold uppercase tracking-widest text-purple-300 bg-purple-500/10 border border-purple-500/20 rounded-full">
+                RnR Vibe — Lightweight Vibecoding Platform
+              </h1>
             </div>
             <div ref={parallaxTitleRef} className="will-change-transform">
               <RotatingTagline
+                as="h2"
                 className="text-5xl sm:text-6xl md:text-8xl font-bold tracking-tighter leading-[0.9]"
                 phrases={[
                   { prefix: "Code with the", highlight: "vibe" },
@@ -599,7 +600,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-neutral-800/50 px-6 py-10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-neutral-500">
-          <span>&copy; {new Date().getFullYear()} RnR Vibe. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} RnR Vibe (rnrvibe.com). All rights reserved.</span>
           <div className="flex gap-6 flex-wrap justify-center">
             <a href="/tools" className="hover:text-purple-400 transition duration-300">Tools</a>
             <a href="/projects" className="hover:text-purple-400 transition duration-300">Projects</a>

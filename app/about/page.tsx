@@ -17,7 +17,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-neutral-950 text-white">
       <BlogNav />
       <div className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="mb-6 text-3xl font-bold tracking-tight">About</h1>
+        <h1 className="mb-6 text-3xl font-bold tracking-tight">About RnR Vibe</h1>
 
         <div className="prose">
           <p>
