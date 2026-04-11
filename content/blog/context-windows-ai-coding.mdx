@@ -1,0 +1,61 @@
+---
+title: "Context Windows: The Invisible Ceiling on AI Coding"
+date: "2026-04-06"
+description: "Every LLM has a context limit, and hitting it is the number one reason your vibecoding sessions start going sideways. Here's how to spot it and work around it."
+tags: ["context", "limits", "prompts"]
+readTime: "5 min read"
+---
+
+# Context Windows: The Invisible Ceiling on AI Coding
+
+You start a session with the AI. The first hour, the code flows. By the third hour, the same model that was writing clean React components is forgetting function names it wrote twenty minutes ago and inventing imports that don't exist. You didn't get dumber. The model didn't get dumber. You hit the context window.
+
+## What it actually is
+
+A context window is the total amount of text the model can "see" at once — your system prompt, your conversation history, any files you pasted in, and the response it's generating. Measured in tokens, which are roughly 3/4 of a word.
+
+Different models have wildly different limits:
+
+- **Small local models** (gemma, phi, qwen-coder): 8k–32k tokens
+- **Mid-tier**: 128k tokens
+- **Frontier cloud models**: 200k–2M tokens
+
+2 million tokens sounds infinite. It isn't. The model doesn't pay equal attention across its whole window. Performance degrades as you approach the limit — recall drops, hallucinations climb, instructions from early in the conversation get quietly ignored.
+
+## How to spot you've hit the ceiling
+
+The symptoms are distinctive once you know them:
+
+- **The model re-invents code it already wrote.** Same function, different name, slightly worse.
+- **Imports stop matching.** Variables from three files ago reappear with the wrong types.
+- **Your rules get forgotten.** "Use Tailwind, not CSS modules" — and suddenly you're staring at a `.module.css` file.
+- **Responses get shallower.** Less structure, fewer edge cases, shorter answers to the same question.
+- **It confuses different files.** Logic from one component leaks into another.
+
+If you see any of these, check the length of your conversation. You're probably 60–80% of the way through the window.
+
+## Six strategies that actually help
+
+**1. Start fresh for new problems.** The biggest performance gain is free: end the session, start a new one, re-describe the task. You lose memory but gain clarity.
+
+**2. Summarize and restart.** Ask the model to summarize the current state ("What have we built so far? What are the open issues?"), copy that summary, start a new conversation, and paste it as the first message.
+
+**3. Paste files, don't describe them.** "Here's what I have" + actual code costs fewer tokens than a detailed description and gets better results. The model is better at reading code than inferring it.
+
+**4. Trim aggressively before you send.** Strip comments, remove unused imports, delete sections the model doesn't need. Every token you save is a token the model can use for thinking.
+
+**5. Split big tasks into sub-sessions.** Don't build an entire app in one conversation. One session for the database layer, another for the API, another for the UI. Each with focused context.
+
+**6. Use file-aware tools.** Editor integrations that automatically attach relevant files beat chat interfaces where you paste manually. They know what's in scope.
+
+## When to switch models instead
+
+Sometimes the answer is a bigger window. If you genuinely need to reason over 100k+ tokens of code — say, refactoring across many files — a small local model will choke no matter how clever your prompting. Switch to something with more room, finish the task, switch back.
+
+The opposite is also true. If you're doing a simple task and your session is clogged with 50 earlier messages about unrelated things, the local 8k model on a clean session will beat the frontier model on a polluted one.
+
+## The meta-lesson
+
+Context windows are the thing nobody warns you about. Prompt engineering guides focus on how to phrase the first message. Context management is about what happens in messages 2 through 200 — and that's where most real work happens.
+
+Pay attention to session length the same way you pay attention to response quality. When the quality drops, it's almost never the model. It's the ceiling.

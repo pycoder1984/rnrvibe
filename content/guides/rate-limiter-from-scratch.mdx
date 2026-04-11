@@ -1,0 +1,235 @@
+---
+title: "Building a Rate Limiter Without Dependencies"
+date: "2026-04-09"
+description: "Protect your APIs from abuse with a hand-rolled rate limiter in under 50 lines of TypeScript. No Redis, no libraries, no bullshit."
+tags: ["intermediate", "api", "backend", "security"]
+readTime: "6 min read"
+difficulty: "Intermediate"
+---
+
+# Building a Rate Limiter Without Dependencies
+
+You have an API route. Someone finds it and starts hammering it. Now you're paying for compute (or, worse, cloud LLM tokens) because a loop somewhere decided to ask your endpoint 10,000 questions a second.
+
+The fix is a rate limiter. And for most real projects, you don't need Redis or a managed service — a ~40-line in-memory TypeScript implementation is fine. This guide walks through building one.
+
+## When in-memory is enough
+
+In-memory rate limiters have a real limitation: they only work per-process. If you run two server instances behind a load balancer, each has its own counter, so an attacker can get 2x the limit. For serious distributed systems, use Redis.
+
+But for everyone else — a single Next.js server, a modest side project, a local tool — in-memory is fine. It's fast (microseconds), has zero infrastructure cost, and works offline.
+
+If you outgrow it later, the interface stays the same. You swap the storage, not the callers.
+
+## The algorithm: sliding window counter
+
+There are a few common algorithms:
+
+- **Fixed window** — "max 60 requests per minute." Simple, but allows bursts at window boundaries.
+- **Token bucket** — "you have a bucket of 60 tokens, one is added per second." Smooth, but a bit more code.
+- **Sliding window** — "max 60 requests in the last 60 seconds, rolling." Most fair, reasonably simple.
+
+We'll build a sliding window. It's the algorithm that feels right to users: no surprising resets, no boundary gaming.
+
+## The implementation
+
+```ts
+// lib/rate-limit.ts
+
+interface RateLimitConfig {
+  windowMs: number;    // time window in milliseconds
+  max: number;         // max requests per window
+}
+
+interface Entry {
+  timestamps: number[];
+}
+
+const stores = new Map<string, Map<string, Entry>>();
+
+/**
+ * Check if a key has exceeded its rate limit.
+ * Returns { allowed: boolean, remaining: number, resetMs: number }.
+ */
+export function checkRateLimit(
+  namespace: string,
+  key: string,
+  config: RateLimitConfig
+): { allowed: boolean; remaining: number; resetMs: number } {
+  const now = Date.now();
+  const cutoff = now - config.windowMs;
+
+  // Get (or create) the namespace store
+  let store = stores.get(namespace);
+  if (!store) {
+    store = new Map();
+    stores.set(namespace, store);
+  }
+
+  // Get (or create) the entry for this key
+  let entry = store.get(key);
+  if (!entry) {
+    entry = { timestamps: [] };
+    store.set(key, entry);
+  }
+
+  // Drop timestamps outside the window
+  entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
+
+  if (entry.timestamps.length >= config.max) {
+    // Over the limit
+    const oldest = entry.timestamps[0];
+    const resetMs = oldest + config.windowMs - now;
+    return {
+      allowed: false,
+      remaining: 0,
+      resetMs: Math.max(resetMs, 0),
+    };
+  }
+
+  // Under the limit — record this request
+  entry.timestamps.push(now);
+  return {
+    allowed: true,
+    remaining: config.max - entry.timestamps.length,
+    resetMs: config.windowMs,
+  };
+}
+
+/**
+ * Periodically clean up stale entries so the Map doesn't grow forever.
+ * Call from a setInterval or every N requests.
+ */
+export function cleanupRateLimitStore(maxAgeMs = 600_000) {
+  const cutoff = Date.now() - maxAgeMs;
+  for (const store of stores.values()) {
+    for (const [key, entry] of store.entries()) {
+      entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
+      if (entry.timestamps.length === 0) {
+        store.delete(key);
+      }
+    }
+  }
+}
+```
+
+That's the whole thing. 50 lines, no dependencies, zero configuration beyond the window and max.
+
+## Using it in an API route
+
+Here's how it plugs into a Next.js route handler:
+
+```ts
+// app/api/chat/route.ts
+import { checkRateLimit } from "@/lib/rate-limit";
+
+export async function POST(req: Request) {
+  // Get the client IP — on Vercel, this comes from a header
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+
+  const limit = checkRateLimit("chat", ip, {
+    windowMs: 60_000,  // 1 minute
+    max: 10,           // 10 requests per minute per IP
+  });
+
+  if (!limit.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: "Too many requests",
+        retryAfter: Math.ceil(limit.resetMs / 1000),
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(Math.ceil(limit.resetMs / 1000)),
+          "X-RateLimit-Remaining": "0",
+        },
+      }
+    );
+  }
+
+  // ... actual handler logic ...
+}
+```
+
+Note the `Retry-After` header — it's the standard way to tell clients when they can retry, and well-behaved HTTP clients (including `fetch` with retry logic) will respect it.
+
+## Namespaces, explained
+
+Why the `namespace` parameter? Different endpoints usually need different limits. You want:
+
+- `/api/chat` — 10 per minute (cheap, frequent use)
+- `/api/generate-image` — 3 per 5 minutes (expensive, occasional)
+- `/api/generate-logo` — 5 per minute (medium)
+
+Calling `checkRateLimit("chat", ip, ...)` and `checkRateLimit("image", ip, ...)` gives each endpoint its own counter without the limits interfering with each other.
+
+## Choosing the key
+
+We used IP above, but the "key" can be anything:
+
+- **IP address** — works for anonymous APIs, easy to implement
+- **User ID** — better for authenticated APIs, can't be bypassed by changing IP
+- **API key** — if you're exposing an API to paying customers
+- **IP + user agent** — more specific, harder to rotate
+
+For a simple public API, IP is fine. The main weakness is that users behind shared NAT (corporate networks, mobile carriers) all share one IP, so they share one bucket. For a public tool that's usually acceptable.
+
+## Testing your rate limiter
+
+You can test it without booting a server:
+
+```ts
+// lib/rate-limit.test.ts (conceptual)
+import { checkRateLimit } from "./rate-limit";
+
+const config = { windowMs: 1000, max: 3 };
+
+// First 3 requests: allowed
+console.log(checkRateLimit("test", "key1", config)); // allowed: true, remaining: 2
+console.log(checkRateLimit("test", "key1", config)); // allowed: true, remaining: 1
+console.log(checkRateLimit("test", "key1", config)); // allowed: true, remaining: 0
+
+// Fourth: blocked
+console.log(checkRateLimit("test", "key1", config)); // allowed: false, resetMs: ~1000
+
+// Different key: separate bucket
+console.log(checkRateLimit("test", "key2", config)); // allowed: true, remaining: 2
+```
+
+For a real test suite, use `jest.useFakeTimers()` and advance time to verify the window actually slides.
+
+## Gotchas
+
+**Serverless cold starts.** On a platform like Vercel, each cold-started serverless function has its own fresh Map, so the counter effectively resets. This is a feature if you're trying to stop sustained abuse (the attacker can't really exploit cold starts), and a bug if you're trying to guarantee exact limits. For exact limits, you need shared storage.
+
+**Memory growth.** Without cleanup, the Map grows every time a new key (e.g., new IP) hits your API. The `cleanupRateLimitStore` function handles this — call it on a timer:
+
+```ts
+if (typeof setInterval !== "undefined") {
+  setInterval(() => cleanupRateLimitStore(), 5 * 60_000);
+}
+```
+
+**Concurrency.** Node.js is single-threaded, so you don't need locks. If you port this to a threaded runtime, you will.
+
+## When to upgrade to Redis
+
+You need distributed rate limiting when:
+
+- You run multiple server instances behind a load balancer
+- You scale horizontally and need consistent limits
+- You want rate limits to survive server restarts
+- You're rate limiting by user and users hit different pods
+
+When that day comes, swap the storage layer. Keep the interface identical — `checkRateLimit(namespace, key, config)` — so the callers don't change. That's the benefit of building it cleanly the first time.
+
+## The point
+
+Rate limiting doesn't have to be a managed service. For most projects, 50 lines of TypeScript in a single file is the right answer. Zero dependencies, zero infrastructure, zero bills.
+
+When you outgrow it, you'll know. Until then, ship the simple version and move on.

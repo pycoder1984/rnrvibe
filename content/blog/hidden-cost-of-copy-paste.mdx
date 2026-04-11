@@ -1,0 +1,64 @@
+---
+title: "The Hidden Cost of Copy-Pasting AI Code"
+date: "2026-04-08"
+description: "Every copy-paste feels like a time save. Six months later, it's a refactor waiting to happen. Here's what accumulates when you skip the review step."
+tags: ["tech-debt", "review", "best-practices"]
+readTime: "4 min read"
+---
+
+# The Hidden Cost of Copy-Pasting AI Code
+
+Copy-paste feels free. The AI returned working code, you pasted it in, the tests passed, you moved on. You saved an hour. Multiply that across a year of vibecoding and you've saved weeks.
+
+Except you haven't. You've deferred the cost. And the interest rate is brutal.
+
+## What actually accumulates
+
+Every unreviewed copy-paste smuggles in a little extra weight. On its own, none of it matters. In aggregate, it's the reason your "simple" project now takes 45 seconds to build and nobody can figure out why.
+
+**Inconsistent patterns.** The AI writes `fetchUser()` in one file and `getUserData()` in another. Both work. Neither follows the convention you established last month. A year later your codebase has five different data-fetching styles and new contributors can't tell which one is "correct."
+
+**Phantom dependencies.** AI loves importing things. `lodash` for a single `groupBy` call. `moment` when `Intl.DateTimeFormat` would work. `axios` when `fetch` was already in the file. Your `package.json` bloats, your bundle grows, and half the imports aren't even used.
+
+**Half-understood logic.** You accept a regex you didn't read. A reducer with a subtle off-by-one. An async function with an unhandled rejection path. Six weeks later something breaks at 2am and the code making the call is code you've never actually thought about.
+
+**Ghost error handling.** `try { ... } catch (e) { console.error(e) }` is not error handling. It's the *shape* of error handling. The AI produces it to look responsible. You paste it because it looks responsible. In production, the errors get swallowed and nobody ever sees them.
+
+**Dead defensive code.** Null checks for values that can't be null. Validation for inputs the framework already validates. Fallback branches that never execute. It's not wrong, exactly — it's just noise, and noise makes the real logic harder to find.
+
+## The six-month tax
+
+None of this is catastrophic. That's why it's dangerous. Your project keeps working. New features still ship. Then you hit the refactor moment:
+
+> "Why is this codebase so hard to change?"
+
+The answer is never one big thing. It's a thousand small copy-pastes that each seemed fine at the time. And the fix is worse than the original work would have been, because now you're untangling decisions you didn't make.
+
+## A cheap habit that prevents most of it
+
+You don't need to write every line yourself. Vibecoding is legitimately faster. But adopt one rule:
+
+**Before you paste, answer: "Would I write this if I were writing it from scratch?"**
+
+That single question catches most of the damage. It forces you to:
+
+1. Actually read the code
+2. Notice patterns that don't match your project
+3. Spot dependencies you don't need
+4. Trim fluff before it lands
+
+It takes thirty seconds. Usually less. And it changes what you're pasting from "what the model gave me" to "what the model gave me, minus the parts I don't want."
+
+## Tools that help
+
+If you're not going to read every line yourself (and honestly, who is), at least run code through a filter before it lands:
+
+- **[Vibe Checker](/tools/vibe-checker)** — catches security issues, unused imports, sketchy patterns
+- **[Code Explainer](/tools/code-explainer)** — if you can't explain what the AI wrote, you can't review it
+- **[Bug Fixer](/tools/bug-fixer)** — for the ones that slip through anyway
+
+## The point
+
+Copy-paste isn't the problem. Copy-paste *without reading* is the problem. The thirty seconds you save per paste is the thirty seconds you're borrowing against the future version of yourself who has to maintain this code.
+
+Read what you paste. Or pay the interest later.

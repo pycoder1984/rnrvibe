@@ -1,0 +1,234 @@
+---
+title: "Streaming LLM Responses with Server-Sent Events"
+date: "2026-04-05"
+description: "Build a chat UI that feels instant. Learn how to stream LLM responses from your backend to the browser using Server-Sent Events, with proper error handling and cancellation."
+tags: ["intermediate", "streaming", "api", "llm"]
+readTime: "7 min read"
+difficulty: "Intermediate"
+---
+
+# Streaming LLM Responses with Server-Sent Events
+
+The difference between a chat UI that streams and one that doesn't isn't cosmetic — it's the difference between a product that feels fast and one that feels broken. This guide shows you how to pipe tokens from an LLM to the browser, word by word, using Server-Sent Events (SSE).
+
+## Why SSE and not WebSockets
+
+You've got three realistic options for pushing data from server to browser:
+
+- **Long polling** — the client asks for updates repeatedly. Simple, but inefficient and laggy.
+- **WebSockets** — full duplex, server and client can both send. Overkill if the client only needs to receive.
+- **Server-Sent Events** — one-way, server-to-client, over plain HTTP. Works with `fetch`, no library needed.
+
+For LLM streaming, SSE is almost always the right pick. The request is POST-style (the prompt goes up once), the response is stream-style (tokens come back over time). You don't need full duplex; you need a pipe.
+
+## The wire format
+
+SSE messages look like this:
+
+```
+event: token
+data: {"text": "Hello"}
+
+event: token
+data: {"text": " world"}
+
+event: done
+data: {}
+```
+
+Each message is two lines: `event:` and `data:`, separated from the next message by a blank line. The data is a string — we wrap JSON so the client can parse structured payloads.
+
+Ollama uses a slightly different format (newline-delimited JSON, not SSE). OpenRouter uses OpenAI-style SSE (`data: {json}\n\n`). Both work with the same client-side reader — you just parse differently.
+
+## The server: a Next.js route handler
+
+Here's a minimal streaming route that proxies to Ollama:
+
+```ts
+// app/api/chat/route.ts
+export const runtime = "nodejs";
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  const ollamaRes = await fetch("http://localhost:11434/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gemma3:4b",
+      prompt,
+      stream: true,
+    }),
+  });
+
+  if (!ollamaRes.ok || !ollamaRes.body) {
+    return new Response("Upstream failed", { status: 502 });
+  }
+
+  // Transform Ollama's NDJSON into SSE
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const reader = ollamaRes.body!.getReader();
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const json = JSON.parse(line);
+              const text = json.response || "";
+              if (text) {
+                controller.enqueue(
+                  encoder.encode(`event: token\ndata: ${JSON.stringify({ text })}\n\n`)
+                );
+              }
+              if (json.done) {
+                controller.enqueue(encoder.encode(`event: done\ndata: {}\n\n`));
+              }
+            } catch { /* skip malformed line */ }
+          }
+        }
+      } catch (err) {
+        controller.enqueue(
+          encoder.encode(`event: error\ndata: ${JSON.stringify({ message: String(err) })}\n\n`)
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
+}
+```
+
+A few things to notice:
+
+- We return a `ReadableStream`, not a buffered response. The browser gets bytes as soon as they're available.
+- The `buffer += ... lines.pop()` pattern handles NDJSON messages that get split across chunks.
+- We emit three event types: `token`, `done`, and `error`. The client branches on the event name.
+- `text/event-stream` is the content type that matters — proxies and CDNs respect it and won't buffer the response.
+
+## The client: reading the stream
+
+On the browser side, `fetch` + `ReadableStream.getReader()` is all you need. No library:
+
+```tsx
+"use client";
+
+import { useState, useRef } from "react";
+
+export function ChatBox() {
+  const [response, setResponse] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const send = async (prompt: string) => {
+    setResponse("");
+    setStreaming(true);
+    abortRef.current = new AbortController();
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!res.ok || !res.body) throw new Error("Request failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let eventType = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (eventType === "token") {
+                setResponse((prev) => prev + data.text);
+              } else if (eventType === "error") {
+                throw new Error(data.message);
+              }
+            } catch {
+              /* skip malformed */
+            }
+            eventType = "";
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // User cancelled — not an error
+      } else {
+        setResponse((prev) => prev + `\n\nError: ${String(err)}`);
+      }
+    } finally {
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  };
+
+  return (
+    <div>
+      <div className="whitespace-pre-wrap">{response}</div>
+      {streaming && (
+        <button onClick={() => abortRef.current?.abort()}>Stop</button>
+      )}
+    </div>
+  );
+}
+```
+
+The key pieces:
+
+- **AbortController** — lets the user cancel mid-stream. Essential for a good UX; nobody wants to wait through a 500-token response they no longer need.
+- **Buffer splitting** — same pattern as the server, because SSE messages can arrive split across chunks.
+- **Event type parsing** — we track the most recent `event:` line and pair it with the next `data:` line.
+
+## What to watch out for
+
+**Buffering proxies.** Some CDNs and reverse proxies buffer responses before forwarding them, which defeats the whole point. Set `Cache-Control: no-cache` and `Content-Type: text/event-stream` and they usually behave. If they don't, check your proxy's docs for streaming mode.
+
+**Browser tab throttling.** If the user switches tabs, the browser may throttle your JavaScript. The stream keeps flowing at the TCP level, but your handler runs slower. Usually fine; just something to be aware of if you're measuring tokens-per-second in the browser.
+
+**Partial JSON in `data:` lines.** Every `data:` line should contain one complete JSON object. If the server emits unescaped newlines in the JSON, your parser will break. Always `JSON.stringify()` on the server before wrapping in `data:`.
+
+**Long-lived connections and timeouts.** Vercel serverless functions have a maximum duration (~60s on hobby, longer on pro). If a response takes longer than that, it gets killed. For local models this is usually fine; for huge cloud contexts, consider a longer runtime or Edge functions.
+
+## Going further
+
+The pattern above is essentially what RnR Vibe's own chat API uses — have a look at `app/api/chat/route.ts` in the repo for a production version with rate limiting, injection detection, and OpenRouter fallback.
+
+Once you have streaming working, everything else about chat UX becomes possible: typewriter effects, progressive syntax highlighting, cancelable responses, partial commits. None of it works without the pipe underneath.
+
+Build the pipe first. Everything good follows.

@@ -1,0 +1,83 @@
+---
+title: "When to Commit AI Code vs When to Rewrite It"
+date: "2026-04-10"
+description: "A decision framework for the moment every vibecoder faces: is this code good enough to keep, or should I scrap it and try again?"
+tags: ["decisions", "workflow", "best-practices"]
+readTime: "5 min read"
+---
+
+# When to Commit AI Code vs When to Rewrite It
+
+You've got a response from the model. The code compiles. It even passes the test you wrote. Now comes the question every vibecoder faces ten times a day: **do I keep this, or do I burn it down and try again?**
+
+Getting this decision right is most of what separates a fast vibecoder from a slow one. Keep bad code and you pay later. Rewrite acceptable code and you pay now, for nothing.
+
+Here's the framework I use.
+
+## Green flags — keep it
+
+Commit the code if all of these are true:
+
+**You can explain every line.** Not roughly — specifically. If there's a `.reduce()` call and you're fuzzy on the accumulator, that's a red flag. If there's a regex you didn't read, that's a red flag. Understanding is a hard gate.
+
+**It matches the patterns already in your codebase.** Same import style, same error handling style, same naming conventions. The AI doesn't know what's in your repo unless you tell it, so this isn't automatic — you have to check.
+
+**It's the simplest thing that solves the problem.** Three clear lines beat an elegant factory pattern with an interface and a dependency injection container. If the AI over-engineered, you have two options: ask it to simplify, or do it yourself.
+
+**The error paths are real.** Not `catch (e) { console.error(e) }`. Actual handling — retries, fallbacks, user-facing messages, whatever makes sense for the context.
+
+**Edge cases are handled intentionally.** Empty arrays, null inputs, zero-length strings. Not just because the AI guessed at them, but because you verified they're handled the way you want.
+
+If five out of five are true: commit. Move on. That's the whole point of vibecoding.
+
+## Red flags — rewrite or refuse
+
+Throw the code out if any of these are true:
+
+**You don't understand a key part of it.** Not "I could figure it out with thirty minutes" — you literally don't know what it does. This is the single biggest reason to rewrite. Code you don't understand is code you can't debug, can't extend, and can't defend in review.
+
+**It imports something you don't want.** New dependency on `lodash` for a one-liner you could write yourself. New framework. New build step. Every import is a commitment; don't make them accidentally.
+
+**The pattern doesn't match the rest of the project.** If your codebase uses `useQuery` everywhere and this new code uses raw `fetch` with manual state, you're introducing an inconsistency that will bite in six months. Reject it.
+
+**It's dramatically more code than the task needed.** You asked for a function to parse a date. It wrote a class with three methods and a type hierarchy. That's a signal — the model is over-fitting to "production-grade code" patterns from its training data, and your simple task got caught in the net.
+
+**You can see magic numbers, dead branches, or commented-out code.** These are signs the AI was iterating in its own response and left the scaffolding behind. It's rarely worth cleaning up — easier to ask for a fresh version.
+
+## The 80/20 rule in practice
+
+Most AI responses fall into three buckets:
+
+- **~20% are great as-is.** Commit them.
+- **~60% are 80% right.** These are the tricky ones. You can salvage them with small edits, but the edits need to be real edits — not "paste and hope."
+- **~20% are wrong in ways that aren't worth fixing.** Rewrite the prompt, not the code. Getting a new response is usually faster than patching a bad one.
+
+The mistake is treating the middle 60% like the top 20%. They're not the same. Middle-tier AI code needs a pass from you before it's ready — review, trim, adapt to your conventions, delete the parts you don't need.
+
+## A quick worked example
+
+You ask for a function to debounce user input in a search box. The model gives you:
+
+```ts
+import { debounce } from "lodash";
+
+export function useSearchDebounce(callback: (value: string) => void, delay = 300) {
+  return debounce(callback, delay);
+}
+```
+
+Green flags:
+- You understand it
+- It works
+
+Red flags:
+- New dependency on lodash for one function
+- Doesn't actually integrate with React's lifecycle — it'll leak
+
+Verdict: rewrite. A 10-line `useEffect` + `setTimeout` version has no dependencies and actually cleans up properly. The AI optimized for "looks clean" over "fits your project."
+
+## The meta-point
+
+Committing AI code and rewriting it aren't opposites — they're both tools, and the skill is knowing which one this particular response deserves. Default to committing when you understand it and it fits. Default to rewriting when you don't or it doesn't.
+
+The worst option is the middle one: committing code you half-understand because you're tired of iterating. That's where the tech debt lives.

@@ -1,0 +1,163 @@
+---
+title: "Pre-Commit Hooks for AI-Generated Code"
+date: "2026-04-07"
+description: "Stop bad AI code at the gate. A beginner-friendly guide to setting up Git pre-commit hooks that catch the mistakes AI most often makes."
+tags: ["beginner", "tooling", "git", "quality"]
+readTime: "5 min read"
+difficulty: "Beginner"
+---
+
+# Pre-Commit Hooks for AI-Generated Code
+
+AI generates code fast. Too fast for careful review every time, honestly. A pre-commit hook is a safety net that runs automatically every time you try to commit — if something looks broken, the commit fails and you fix it before it enters history.
+
+This guide walks through setting one up from scratch using nothing but Git and a shell script. No npm packages required. (We'll show the npm version too for people who want it.)
+
+## What a pre-commit hook is
+
+Git has a `.git/hooks/` directory. Any executable file named `pre-commit` in that directory runs automatically when you type `git commit`. If it exits with a non-zero status, the commit is aborted.
+
+That's the whole mechanism. Everything else is choosing what to put in the script.
+
+## The simplest possible version
+
+Open a terminal in your project and create the hook:
+
+```bash
+cat > .git/hooks/pre-commit <<'EOF'
+#!/bin/sh
+echo "Running pre-commit checks..."
+npm run lint || exit 1
+npx tsc --noEmit || exit 1
+echo "Checks passed."
+EOF
+
+chmod +x .git/hooks/pre-commit
+```
+
+Now try to commit. If lint fails or there are TypeScript errors, the commit is blocked. That's a working pre-commit hook in five lines.
+
+The problem with this version: it runs lint and typecheck on the *entire* project every time, which gets slow on big codebases. Fine for small projects, painful at scale. We'll fix that in a minute.
+
+## The checks that actually catch AI mistakes
+
+AI code has characteristic failure modes. Your hook should target them specifically:
+
+**1. Lint** — catches unused imports (AI loves importing things it doesn't use), undefined variables, and basic style issues.
+
+**2. Typecheck** — catches AI hallucinating field names that don't exist on your types. This is the single highest-value check.
+
+**3. Secret scan** — catches API keys, tokens, and passwords the AI might echo back into your code. Even a one-liner `grep` works:
+
+```sh
+if git diff --cached | grep -E "(api[_-]?key|secret|password|token).*=.*['\"][A-Za-z0-9]{20,}"; then
+  echo "Possible secret detected — aborting commit."
+  exit 1
+fi
+```
+
+**4. Tests** — but only fast ones. If your test suite takes two minutes, this will kill your commit velocity. Split out a "smoke test" script that runs in under 10 seconds.
+
+**5. Debug statements** — AI loves to leave `console.log` everywhere:
+
+```sh
+if git diff --cached --name-only | xargs grep -l "console\.log" 2>/dev/null; then
+  echo "console.log found in staged files. Remove or use --no-verify to bypass."
+  exit 1
+fi
+```
+
+## Running checks only on changed files
+
+The full-project approach gets slow. To make your hook fast, check only what's actually staged:
+
+```bash
+#!/bin/sh
+# .git/hooks/pre-commit
+
+# Get staged TypeScript/JavaScript files
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$')
+
+if [ -z "$STAGED" ]; then
+  exit 0  # nothing to check
+fi
+
+# Lint only the staged files
+echo "Linting staged files..."
+npx eslint $STAGED || exit 1
+
+# Typecheck the whole project (faster than per-file for TS)
+echo "Typechecking..."
+npx tsc --noEmit || exit 1
+
+# Secret scan
+echo "Checking for secrets..."
+if git diff --cached | grep -iE "(api[_-]?key|secret|password|token).*=.*['\"][A-Za-z0-9]{20,}"; then
+  echo "Possible secret detected. Aborting."
+  exit 1
+fi
+
+echo "All checks passed."
+```
+
+This version scales much better. Lint runs in milliseconds on a handful of files, typecheck is still full-project but TypeScript incremental mode (`tsc --noEmit --incremental`) makes it fast after the first run.
+
+## The npm/husky version
+
+If you prefer managed hooks (shared across your team, installed via `npm install`), the standard tool is [husky](https://typicode.github.io/husky/):
+
+```bash
+npm install --save-dev husky lint-staged
+npx husky init
+```
+
+This creates `.husky/pre-commit`. Edit it to run `lint-staged`:
+
+```sh
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx lint-staged
+```
+
+And in your `package.json`:
+
+```json
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"]
+  },
+  "scripts": {
+    "prepare": "husky"
+  }
+}
+```
+
+The `prepare` script runs after `npm install`, so anyone who clones your repo automatically gets the hooks installed. That's the main advantage over the raw `.git/hooks` approach — hooks aren't tracked by Git, so they don't get shared unless you use a tool like husky.
+
+## When to bypass
+
+Sometimes you need to commit something that would fail the hook. Work in progress, a known-bad state you're saving for later, whatever. Use `--no-verify`:
+
+```bash
+git commit --no-verify -m "wip: broken state"
+```
+
+Don't do this habitually. The whole point of the hook is that it catches things — if you're bypassing it every time, delete the hook and stop pretending.
+
+## When your hook is too slow
+
+If the hook takes more than ~5 seconds, people will start using `--no-verify` just to avoid the wait, and you've lost all the benefits. Tips for keeping it fast:
+
+- **Run only on staged files** (not the whole project)
+- **Use `tsc --incremental`** to cache type information
+- **Skip the test suite in the hook** — put tests in CI instead
+- **Cache node_modules** between runs (if you're using containers)
+
+A fast hook is a hook people trust. A slow hook is a hook people bypass.
+
+## The point
+
+Pre-commit hooks don't need to be sophisticated. A 20-line shell script that runs lint, typecheck, and a secret scan will catch 80% of the mistakes AI makes. You don't need a framework. You don't need CI integration. You just need something that runs before the commit lands and yells when it sees a problem.
+
+Set it up once. Forget about it. Let it yell when it needs to.
