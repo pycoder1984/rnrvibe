@@ -1,13 +1,13 @@
 # RnR Vibe
 
-A vibecoding platform with 27 AI-powered tools, 18 interactive projects, 29 blog posts, and 26 guides — all running locally with Ollama and Stable Diffusion. No cloud API bills.
+A vibecoding platform with 27 AI-powered tools, 19 interactive projects, 29 blog posts, and 26 guides — all running locally with Ollama and Stable Diffusion. No cloud API bills.
 
 **Live at [rnrvibe.com](https://www.rnrvibe.com)**
 
 ## Stack
 
 - **Framework:** Next.js 16 (App Router, TypeScript, Tailwind CSS 4)
-- **LLM:** Ollama (gemma4:e4b default, configurable via `OLLAMA_MODEL`)
+- **LLM:** Ollama (gemma4:e4b default, configurable via `OLLAMA_MODEL`) with automatic OpenRouter fallback when local machine is offline
 - **Image Generation:** Stable Diffusion (AUTOMATIC1111 WebUI with `--api` flag)
 - **Hosting:** Vercel (static/serverless) + Cloudflare Tunnel (AI services on local machine)
 - **Content:** MDX blog posts and guides with gray-matter frontmatter
@@ -40,7 +40,7 @@ Or use the startup script: `C:\Users\obaid\Desktop\start-rnrvibe.bat` (starts Ol
 app/
   api/              # 11 API routes (chat, image generation, health, etc.)
   tools/            # 27 AI tool pages
-  projects/         # 18 interactive project demos
+  projects/         # 19 interactive project demos
   blog/             # Blog listing + [slug] pages
   guides/           # Guide listing + [slug] pages
   compare/          # Comparison pages (vs Cursor, Copilot, etc.)
@@ -48,13 +48,14 @@ app/
 components/         # Shared UI components
 content/
   blog/             # 29 MDX blog posts
-  guides/           # 23 MDX guides
+  guides/           # 26 MDX guides
 data/
   projects.ts       # Project registry
   tools.ts          # Tool registry
 lib/
   api-config.ts     # API base URL config
   guardrails.ts     # Input sanitization, injection detection, output filtering
+  llm-provider.ts   # Ollama + OpenRouter fallback with health checks
   mdx.ts            # MDX file loading utilities
   rate-limit.ts     # Shared rate limiting
   request-log.ts    # Request logging
@@ -85,7 +86,7 @@ All three image tools check SD connectivity on page load and show an error banne
 ## Key Features
 
 - **27 AI Tools** — chat, code generation, image generation, logo design, code review, and more
-- **18 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Drawing canvas, etc.)
+- **19 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Drawing canvas, etc.)
 - **29 Blog Posts + 26 Guides** — MDX content about vibecoding, AI tools, and development
 - **Security Hardened** — input sanitization, prompt injection detection, output filtering, rate limiting
 - **Fully Local AI** — no external API keys needed, runs on your own hardware
@@ -99,6 +100,8 @@ All optional — defaults work for standard local setup:
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=gemma4:e4b
 SD_URL=http://127.0.0.1:7860
+OPENROUTER_API_KEY=          # optional — enables cloud LLM fallback when Ollama is unreachable
+OPENROUTER_MODEL=            # optional — pin to a single free model; unset rotates through a fallback list
 ```
 
 ## License

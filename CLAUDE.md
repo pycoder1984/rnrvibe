@@ -100,9 +100,21 @@ The hero combines six coordinated effects. Keep them working together when editi
 
 - **Parallax layers** — `parallaxBadgeRef` / `parallaxTitleRef` / `parallaxSubtitleRef` / `parallaxCtaRef` each get a different `translate3d` factor in the scroll rAF loop. The refs are on wrapper divs (not the animated elements themselves) so the CSS entrance animations aren't clobbered by inline transforms.
 - **Split-text reveal** — `components/RotatingTagline.tsx` renders each word as a `<span class="split-word">` with a `--i` index. The `.split-word` keyframe in `globals.css` staggers them on mount. Re-mounting via `key={index}` re-triggers the animation on each phrase change.
-- **Rotating tagline** — `RotatingTagline` cycles `phrases` on an interval (default 4500ms). Each phrase is `{ prefix, highlight }`; the highlight gets the purple→indigo gradient.
+- **Rotating tagline** — `RotatingTagline` cycles `phrases` on an interval (default 4500ms). Each phrase is `{ prefix, highlight }`; the highlight gets the purple→indigo gradient. The component accepts an `as?: "h1" | "h2"` prop — on the homepage it MUST be rendered with `as="h2"` because the real `<h1>` is the badge ("RnR Vibe — Lightweight Vibecoding Platform") above it. Do not revert this: the badge-as-h1 is an SEO fix so "RnR Vibe" appears in the primary heading.
 - **Morphing gradient** — `.morph-gradient` in `globals.css` animates `background-position` on a multi-stop linear gradient. Placed behind the hero content at `zIndex: 1`.
 - **3D tilt CTAs** — the hero CTA buttons are wrapped in `<TiltCard href=...>` which handles the perspective/rotate transform on mouse move. Don't use `hover:-translate-y-*` on tilt cards — the JS transform will override it anyway.
 - **Stats counter** — `components/StatsCounter.tsx` uses IntersectionObserver + `requestAnimationFrame` to count from 0 to each target value with ease-out-cubic when it enters the viewport. Values live in the `<StatsCounter stats={...} />` call in the hero section of `app/page.tsx` — update them when tool/project/post counts change.
 
 All of these respect `prefers-reduced-motion` via the media query at the bottom of `globals.css` (plus a matching check in `StatsCounter.tsx` that jumps straight to final values).
+
+## SEO: brand disambiguation
+
+Google was spell-correcting "rnrvibe" → "revibe" (a much higher-traffic brand). Several pieces of the site exist specifically to fight that and should not be reverted without thought:
+
+- `app/layout.tsx` ships **two** JSON-LD blocks: `WebSite` and `Organization`, both with `alternateName: ["RnRVibe", "rnrvibe", "rnr vibe", "RNR Vibe"]`.
+- `metadata.keywords` in `app/layout.tsx` includes the brand variants. `applicationName: "RnR Vibe"` is also set.
+- Homepage `<h1>` is the badge, not the rotating tagline (see Hero page motion system above). The rotating tagline is an `<h2>`.
+- `/about` h1 is "About RnR Vibe", not just "About".
+- Homepage footer copyright line says "RnR Vibe (rnrvibe.com)" — the plain-text domain is deliberate brand reinforcement for crawlers.
+
+If you add new top-level pages, use the brand name explicitly in the h1 where it's natural. Don't strip "RnR Vibe" from headings to shorten them.
