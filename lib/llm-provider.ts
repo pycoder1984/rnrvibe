@@ -19,7 +19,7 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_MODEL_OVERRIDE = process.env.OPENROUTER_MODEL || "";
 
 // Free-tier models to try in order. Update this list when models rotate.
-const FREE_MODELS = [
+export const FREE_MODELS = [
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "google/gemma-4-26b-a4b-it:free",
   "qwen/qwen3-coder:free",
@@ -29,9 +29,30 @@ const FREE_MODELS = [
   "minimax/minimax-m2.5:free",
 ];
 
-function getModelsToTry(): string[] {
+export const DEFAULT_OLLAMA_MODEL = OLLAMA_MODEL;
+
+function getModelsToTry(requested?: string): string[] {
+  if (requested) return [requested];
   if (OPENROUTER_MODEL_OVERRIDE) return [OPENROUTER_MODEL_OVERRIDE];
   return FREE_MODELS;
+}
+
+export async function listOllamaModels(): Promise<string[]> {
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/tags`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const models = Array.isArray(data?.models) ? data.models : [];
+    return models.map((m: { name?: string }) => m.name).filter((n: unknown): n is string => typeof n === "string");
+  } catch {
+    return [];
+  }
+}
+
+export function isOpenRouterConfigured(): boolean {
+  return Boolean(OPENROUTER_API_KEY);
 }
 
 let ollamaAvailable: boolean | null = null;
@@ -58,7 +79,15 @@ async function isOllamaUp(): Promise<boolean> {
 
 export type LLMProvider = "ollama" | "openrouter";
 
-export async function getActiveProvider(): Promise<LLMProvider> {
+export async function getActiveProvider(requested?: LLMProvider): Promise<LLMProvider> {
+  if (requested === "ollama") {
+    if (await isOllamaUp()) return "ollama";
+    throw new Error("Ollama was requested but is not reachable");
+  }
+  if (requested === "openrouter") {
+    if (OPENROUTER_API_KEY) return "openrouter";
+    throw new Error("OpenRouter was requested but OPENROUTER_API_KEY is not set");
+  }
   if (await isOllamaUp()) return "ollama";
   if (OPENROUTER_API_KEY) return "openrouter";
   throw new Error("No LLM provider available — Ollama is down and OPENROUTER_API_KEY is not set");
@@ -98,15 +127,17 @@ export async function streamGenerate(opts: {
   prompt: string;
   system: string;
   signal?: AbortSignal;
+  provider?: LLMProvider;
+  model?: string;
 }): Promise<{ provider: LLMProvider; body: ReadableStream<Uint8Array> }> {
-  const provider = await getActiveProvider();
+  const provider = await getActiveProvider(opts.provider);
 
   if (provider === "ollama") {
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: OLLAMA_MODEL,
+        model: opts.model || OLLAMA_MODEL,
         prompt: opts.prompt,
         system: opts.system,
         stream: true,
@@ -120,7 +151,7 @@ export async function streamGenerate(opts: {
   }
 
   // OpenRouter — try models in order
-  const models = getModelsToTry();
+  const models = getModelsToTry(opts.model);
   let lastError = "";
 
   for (const model of models) {
@@ -153,15 +184,17 @@ export async function generate(opts: {
   prompt: string;
   system: string;
   signal?: AbortSignal;
+  provider?: LLMProvider;
+  model?: string;
 }): Promise<{ provider: LLMProvider; text: string }> {
-  const provider = await getActiveProvider();
+  const provider = await getActiveProvider(opts.provider);
 
   if (provider === "ollama") {
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: OLLAMA_MODEL,
+        model: opts.model || OLLAMA_MODEL,
         prompt: opts.prompt,
         system: opts.system,
         stream: false,
@@ -176,7 +209,7 @@ export async function generate(opts: {
   }
 
   // OpenRouter — try models in order
-  const models = getModelsToTry();
+  const models = getModelsToTry(opts.model);
   let lastError = "";
 
   for (const model of models) {

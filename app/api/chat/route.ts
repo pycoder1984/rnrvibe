@@ -39,7 +39,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { prompt, tool, stream: useStream } = body;
+  const { prompt, tool, stream: useStream, provider: reqProvider, model: reqModel } = body;
+
+  const allowedProviders = ["ollama", "openrouter"] as const;
+  const provider =
+    typeof reqProvider === "string" && (allowedProviders as readonly string[]).includes(reqProvider)
+      ? (reqProvider as "ollama" | "openrouter")
+      : undefined;
+  const model = typeof reqModel === "string" && reqModel.length > 0 && reqModel.length < 200 ? reqModel : undefined;
 
   if (!prompt || typeof prompt !== "string") {
     return NextResponse.json({ error: "prompt is required" }, { status: 400 });
@@ -78,10 +85,12 @@ export async function POST(req: NextRequest) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 300000);
 
-      const { provider, body } = await streamGenerate({
+      const { provider: usedProvider, body } = await streamGenerate({
         prompt: cleanPrompt,
         system: systemPrompt,
         signal: controller.signal,
+        provider,
+        model,
       });
 
       clearTimeout(timeout);
@@ -103,7 +112,7 @@ export async function POST(req: NextRequest) {
 
               const chunk = decoder.decode(value, { stream: true });
 
-              if (provider === "openrouter") {
+              if (usedProvider === "openrouter") {
                 sseBuffer += chunk;
                 const sseLines = sseBuffer.split("\n");
                 sseBuffer = sseLines.pop() || "";
@@ -216,6 +225,8 @@ export async function POST(req: NextRequest) {
       prompt: cleanPrompt,
       system: systemPrompt,
       signal: controller.signal,
+      provider,
+      model,
     });
 
     clearTimeout(timeout);

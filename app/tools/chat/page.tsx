@@ -9,6 +9,13 @@ interface Message {
   content: string;
 }
 
+type ProviderId = "auto" | "ollama" | "openrouter";
+
+interface ModelsInfo {
+  ollama: { available: boolean; models: string[]; default: string };
+  openrouter: { available: boolean; models: string[] };
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -19,11 +26,39 @@ export default function ChatPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modelsInfo, setModelsInfo] = useState<ModelsInfo | null>(null);
+  // Selection is stored as "auto" or "provider:model"
+  const [selection, setSelection] = useState<string>("auto");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${getApiBase()}/api/models`);
+        if (!res.ok) return;
+        const data = (await res.json()) as ModelsInfo;
+        if (!cancelled) setModelsInfo(data);
+      } catch {
+        /* ignore — selector just stays in auto mode */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const parsedSelection = (): { provider?: ProviderId; model?: string } => {
+    if (selection === "auto") return {};
+    const [p, ...rest] = selection.split(":");
+    const model = rest.join(":");
+    if (p !== "ollama" && p !== "openrouter") return {};
+    return { provider: p, model };
+  };
 
   const send = async () => {
     if (!input.trim() || loading) return;
@@ -41,6 +76,7 @@ export default function ChatPage() {
         .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
         .join("\n\n");
 
+      const sel = parsedSelection();
       const res = await fetch(`${getApiBase()}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,6 +84,8 @@ export default function ChatPage() {
           tool: "chat",
           prompt: context,
           stream: true,
+          ...(sel.provider ? { provider: sel.provider } : {}),
+          ...(sel.model ? { model: sel.model } : {}),
         }),
       });
 
@@ -95,9 +133,40 @@ export default function ChatPage() {
     <div className="flex flex-col min-h-screen bg-neutral-950 text-white">
       <BlogNav />
       <div className="flex-1 flex flex-col mx-auto w-full max-w-3xl px-4 sm:px-6 py-6">
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold tracking-tight">AI Chat Assistant</h1>
-          <p className="text-sm text-neutral-400">Ask anything about vibecoding, prompts, tools, or code.</p>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">AI Chat Assistant</h1>
+            <p className="text-sm text-neutral-400">Ask anything about vibecoding, prompts, tools, or code.</p>
+          </div>
+          <label className="flex flex-col gap-1 text-xs text-neutral-400 sm:items-end">
+            <span>Model</span>
+            <select
+              value={selection}
+              onChange={(e) => setSelection(e.target.value)}
+              disabled={loading}
+              className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:border-purple-500/50 focus:outline-none disabled:opacity-50 min-w-[16rem]"
+            >
+              <option value="auto">Auto (local Ollama, fallback OpenRouter)</option>
+              {modelsInfo?.ollama.available && modelsInfo.ollama.models.length > 0 && (
+                <optgroup label="Ollama (local)">
+                  {modelsInfo.ollama.models.map((m) => (
+                    <option key={`ollama:${m}`} value={`ollama:${m}`}>
+                      {m}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {modelsInfo?.openrouter.available && modelsInfo.openrouter.models.length > 0 && (
+                <optgroup label="OpenRouter (free)">
+                  {modelsInfo.openrouter.models.map((m) => (
+                    <option key={`openrouter:${m}`} value={`openrouter:${m}`}>
+                      {m.replace(":free", "")}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
         </div>
 
         {/* Messages */}
