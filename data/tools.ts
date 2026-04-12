@@ -168,4 +168,10 @@ export const tools: Tool[] = [
     description: "Upscale, restyle, inpaint, and caption images with local Stable Diffusion \u2014 no cloud needed.",
     icon: "\u2728",
   },
+  {
+    href: "/tools/audio-generator",
+    title: "AI Audio Generator",
+    description: "Generate music and sound effects locally with MusicGen and AudioGen \u2014 nothing leaves your machine.",
+    icon: "\u{1F3B5}",
+  },
 ];

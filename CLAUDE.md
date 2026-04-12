@@ -57,7 +57,8 @@ Blog and guide content is in `content/blog/*.mdx` and `content/guides/*.mdx` wit
 ## Conventions
 
 - Image tools (Image Generator, Image Studio, Logo Generator) check Stable Diffusion connectivity on mount and show an error banner with retry if down. Follow this pattern for any new image tools.
-- API routes use `SD_URL` and `OLLAMA_URL` env vars with localhost defaults.
+- API routes use `SD_URL`, `OLLAMA_URL`, and `AUDIO_URL` env vars with localhost defaults.
+- The audio generator tool calls a separate local Python FastAPI server (`scripts/audio_server.py`) that wraps MusicGen + AudioGen. Not part of `npm run dev` — must be started manually.
 - Blog/guide MDX files need frontmatter: title, date, description, tags, readTime (and difficulty for guides).
 - Project entries in `data/projects.ts` need: href, title, description, time, icon, tags, difficulty (Beginner/Intermediate/Advanced).
 - Components use Tailwind with the project's dark theme (neutral-950 bg, purple-500 accents).
@@ -73,6 +74,7 @@ All optional — defaults work for standard local setup:
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama API base |
 | `OLLAMA_MODEL` | `gemma4:e4b` | Model for chat (note: `lib/llm-provider.ts` currently defaults to `gemma3:4b` — env var overrides) |
 | `SD_URL` | `http://127.0.0.1:7860` | Stable Diffusion WebUI API |
+| `AUDIO_URL` | `http://127.0.0.1:7870` | Local audio server (MusicGen + AudioGen) — see `scripts/README.md` |
 | `OPENROUTER_API_KEY` | (none) | Enables cloud LLM fallback |
 | `OPENROUTER_MODEL` | (none — tries fallback list) | Override to force a single OpenRouter model; when unset, `lib/llm-provider.ts` rotates through `FREE_MODELS` until one responds |
 
