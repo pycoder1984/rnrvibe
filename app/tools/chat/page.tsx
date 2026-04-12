@@ -16,6 +16,18 @@ interface ModelsInfo {
   openrouter: { available: boolean; models: string[] };
 }
 
+// Static fallback so the dropdown always shows OpenRouter options even if
+// /api/models isn't reachable yet (e.g. before the local server is rebuilt).
+const FALLBACK_OPENROUTER_MODELS = [
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "qwen/qwen3-coder:free",
+  "google/gemma-3-12b-it:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "google/gemma-3n-e4b-it:free",
+  "minimax/minimax-m2.5:free",
+];
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -147,8 +159,8 @@ export default function ChatPage() {
               className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:border-purple-500/50 focus:outline-none disabled:opacity-50 min-w-[16rem]"
             >
               <option value="auto">Auto (local Ollama, fallback OpenRouter)</option>
-              {modelsInfo?.ollama.available && modelsInfo.ollama.models.length > 0 && (
-                <optgroup label="Ollama (local)">
+              {modelsInfo?.ollama.models && modelsInfo.ollama.models.length > 0 && (
+                <optgroup label={`Ollama (local)${modelsInfo.ollama.available ? "" : " — offline"}`}>
                   {modelsInfo.ollama.models.map((m) => (
                     <option key={`ollama:${m}`} value={`ollama:${m}`}>
                       {m}
@@ -156,15 +168,16 @@ export default function ChatPage() {
                   ))}
                 </optgroup>
               )}
-              {modelsInfo?.openrouter.available && modelsInfo.openrouter.models.length > 0 && (
-                <optgroup label="OpenRouter (free)">
-                  {modelsInfo.openrouter.models.map((m) => (
-                    <option key={`openrouter:${m}`} value={`openrouter:${m}`}>
-                      {m.replace(":free", "")}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              <optgroup label="OpenRouter (free)">
+                {(modelsInfo?.openrouter.models?.length
+                  ? modelsInfo.openrouter.models
+                  : FALLBACK_OPENROUTER_MODELS
+                ).map((m) => (
+                  <option key={`openrouter:${m}`} value={`openrouter:${m}`}>
+                    {m.replace(":free", "")}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
         </div>
