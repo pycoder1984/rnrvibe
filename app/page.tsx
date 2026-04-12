@@ -233,8 +233,8 @@ export default function Home() {
           stats={[
             { label: "AI Tools", value: 27 },
             { label: "Projects", value: 22 },
-            { label: "Blog Posts", value: 29 },
-            { label: "Guides", value: 26 },
+            { label: "Blog Posts", value: 31 },
+            { label: "Guides", value: 28 },
           ]}
         />
       </section>

@@ -1,6 +1,6 @@
 # RnR Vibe
 
-A vibecoding platform with 27 AI-powered tools, 22 interactive projects, 29 blog posts, and 26 guides — all running locally with Ollama and Stable Diffusion. No cloud API bills.
+A vibecoding platform with 27 AI-powered tools, 22 interactive projects, 31 blog posts, and 28 guides — all running locally with Ollama and Stable Diffusion. No cloud API bills.
 
 **Live at [rnrvibe.com](https://www.rnrvibe.com)**
 
@@ -47,8 +47,8 @@ app/
   dashboard/        # Admin dashboard
 components/         # Shared UI components
 content/
-  blog/             # 29 MDX blog posts
-  guides/           # 26 MDX guides
+  blog/             # 31 MDX blog posts
+  guides/           # 28 MDX guides
 data/
   projects.ts       # Project registry
   tools.ts          # Tool registry
@@ -87,7 +87,7 @@ All three image tools check SD connectivity on page load and show an error banne
 
 - **27 AI Tools** — chat, code generation, image generation, logo design, code review, and more
 - **22 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Drawing canvas, etc.)
-- **29 Blog Posts + 26 Guides** — MDX content about vibecoding, AI tools, and development
+- **31 Blog Posts + 28 Guides** — MDX content about vibecoding, AI tools, and development
 - **Security Hardened** — input sanitization, prompt injection detection, output filtering, rate limiting
 - **Fully Local AI** — no external API keys needed, runs on your own hardware
 - **SEO Optimized** — dynamic OG images, structured data, sitemap, RSS feed

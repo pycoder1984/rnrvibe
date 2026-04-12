@@ -1,0 +1,98 @@
+---
+title: "From Markdown to Slides: My Marp Workflow"
+date: "2026-04-12"
+description: "How I ditched PowerPoint for Marp — writing decks as Markdown files that live in the repo, version with git, and rebuild in CI."
+tags: ["marp", "markdown", "workflow", "tools"]
+readTime: "5 min read"
+---
+
+# From Markdown to Slides: My Marp Workflow
+
+I used to keep decks in Google Slides. One per project. Scattered across a Drive folder I couldn't find when I needed to. Edits happened in the browser, on whatever device I was using when I thought of the change, and the diffs were invisible — "what did I change last Tuesday?" was not an answerable question.
+
+Now every deck I write is a Markdown file in the repo it's about. Marp converts it to PDF, PPTX, or HTML on demand. Here's what actually changed about the way I work.
+
+## The Files
+
+A deck lives in `docs/talks/` next to the code. It looks like this:
+
+```
+docs/
+  talks/
+    2026-04-kubecon.md
+    2026-03-internal-review.md
+    2026-02-rfc-walkthrough.md
+    .marprc.yml
+    theme.css
+```
+
+Each talk is one Markdown file. The theme is one CSS file shared across all of them. The `.marprc.yml` sets defaults so I can run `marp 2026-04-kubecon.md --pdf` without typing the same flags every time.
+
+## The Editor Loop
+
+VS Code, Marp for VS Code extension, split pane. Left side: Markdown. Right side: live preview of the slides. Every keystroke re-renders.
+
+I draft in flat bullets first, no thought about slide boundaries. Then I pass over the file and add `---` separators where the natural breaks are. A slide with six bullets becomes two slides with three each. A slide with a code block gets its own slide.
+
+This is maybe a tenth as fast as drafting in PowerPoint because I'm not dragging boxes around. The constraint is useful — I can't waste time tweaking a font, so I focus on the content.
+
+## Version Control Is the Win
+
+This is the thing I didn't realize I wanted until I had it.
+
+A PR to change a deck looks like this:
+
+```diff
+- ## Results from Q3
++ ## Results from Q4
+
+- - Revenue up 12% YoY
+- - NPS up 4 points
++ - Revenue up 18% YoY
++ - NPS up 7 points
+```
+
+Three-line diff. Reviewable in seconds. Merged like code.
+
+Compare that to a PowerPoint: the file is a zipped XML blob, git shows it as binary, you can't see what changed without opening both versions side by side. I never once reviewed a PowerPoint PR before Marp. I review every deck PR now.
+
+## AI Does the Tightening
+
+The drafting loop is AI-assisted. I write the bullets, then paste the file into Claude and ask for a tightening pass. The exact prompt I use:
+
+```
+Tighten these slide bullets. Each bullet should be one thought, under
+10 words if possible. Don't add new information. Keep my phrasing
+when it works.
+```
+
+What comes back is the same content, half the words. Bullets that were too long get split across two slides. Bullets that were redundant get cut. The AI doesn't know what I'm trying to say — it only knows how to compress — which is exactly the division of labor I want.
+
+I still read every suggestion. Maybe 70% of them I accept, 20% I modify, 10% I reject because the AI lost the nuance. Net speed-up: probably 2x on a 20-slide deck.
+
+## Export Happens in CI
+
+Every push to `main` rebuilds the PDFs. A GitHub Actions job runs the Marp CLI against every `.md` file in `docs/talks/`, uploads the PDFs as artifacts, and (for public talks) copies them to a static site.
+
+I never manually export a deck anymore. When I want to share one, I grab the PDF from the latest CI run. It's always in sync with the source.
+
+This matters more than it sounds like it should. In the PowerPoint days, I'd have three copies of a deck — the working version, the "final" version I sent out, and the "actually final" version with the typo fix. Now there's one source of truth and the PDF is just a view of it.
+
+## The Cost
+
+Marp isn't as flexible as PowerPoint. Things I can't easily do:
+
+- Precisely position a shape or image on a slide
+- Use animated transitions or builds
+- Collaborate live with someone else editing the same deck
+- Mix wildly different layouts in one deck
+
+For most technical talks, none of these matter. For a keynote with elaborate animations, use Keynote. For an RFC walkthrough, an engineering review, or a conference talk where the content is the show, Marp wins.
+
+## The Unexpected Benefit
+
+The thing I didn't predict: the barrier to writing a deck dropped so low that I write more of them.
+
+Used to be, "I should put together slides for this" meant an afternoon of PowerPoint wrangling. Now it means opening a `.md` file and typing for twenty minutes. Every RFC, every architecture doc, every project kickoff gets slides now — because making them is almost free.
+
+If you want the full setup walkthrough — install, frontmatter, themes, CI — the [Marp guide](/guides/slides-from-markdown-with-marp) has it end to end.

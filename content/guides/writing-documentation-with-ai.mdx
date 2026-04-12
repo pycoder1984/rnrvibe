@@ -1,0 +1,154 @@
+---
+title: "Writing Documentation with AI"
+date: "2026-04-12"
+description: "A practical workflow for using AI to draft, tighten, and maintain READMEs, wikis, and inline docs — without ending up with generic AI-speak."
+tags: ["documentation", "ai", "writing", "workflow"]
+readTime: "9 min read"
+difficulty: "Beginner"
+---
+
+# Writing Documentation with AI
+
+Documentation is the thing every developer agrees matters and nobody wants to write. AI is genuinely useful for this, but only if you drive it. Ask for a README without context and you get a wall of generic phrases: "This project aims to provide...", "Contributions are welcome...", "Feel free to open an issue..." Nothing wrong with it, but nothing memorable either.
+
+This guide is the workflow I actually use for writing docs with AI — the one that produces pages people read instead of skim.
+
+## The Core Insight
+
+AI is great at tightening prose you've already drafted. It's bad at generating prose from a cold prompt. The trick is not to ask "write me a README for my project." The trick is to dump everything you know into a rough outline, then ask for a tightened version.
+
+Think of it as hiring an editor, not a ghostwriter.
+
+## The Workflow
+
+Four steps. Each one feeds the next.
+
+### 1. Dump Everything
+
+Open a text file. Write down, in whatever order they come to mind:
+
+- What the project does, in one sentence
+- Who it's for
+- Why it exists (what problem does it solve?)
+- How to install it
+- The two or three things a user will do first
+- One gotcha that's bitten you or a teammate
+- Where to find more
+
+It doesn't need to be polished. Bullet points. Fragments. Typos are fine. The goal is to get the knowledge out of your head and onto the page.
+
+```
+- its a rate limiter, in memory, per-IP per-namespace
+- for small internal APIs, not for google scale
+- solves: you dont want to depend on redis for 3 endpoints
+- install: copy lib/rate-limit.ts into your project, theres no npm pkg
+- usage: call checkRateLimit(namespace, ip, limit, windowMs) from your route
+- returns {limited, remaining, resetTime}
+- gotcha: in-memory = doesnt survive restart, doesnt work across instances
+```
+
+Seven bullets, ninety seconds. This is the raw material.
+
+### 2. Ask for Structure
+
+Paste the dump into your AI tool and ask for structure:
+
+```
+Here's a rough dump of everything I know about this library. Organize it
+into a README with standard sections (what it is, install, usage, gotchas,
+etc.). Keep my exact phrasing where it works. Flag anything where you need
+more detail.
+
+[paste dump]
+```
+
+You'll get back a draft. It won't be perfect. It'll have the skeleton right and the tone mostly right, because it's working from your words, not its own.
+
+### 3. Read It Out Loud
+
+This step is non-negotiable. Read the draft out loud. Every sentence that sounds like a LinkedIn post — delete it. Every phrase that could apply to any project on GitHub — delete it. Every time you hear "aims to," "seeks to," "leverages" — delete it.
+
+What you're left with is the stuff that's actually true about *your* project.
+
+### 4. Ask for One More Pass
+
+Paste the cleaned-up version back and ask for a tightening pass:
+
+```
+Tighten this. Cut redundancy. Shorten sentences. Don't add any new
+information. Don't change the tone. If something is unclear, leave it
+alone — I'll fix it myself.
+```
+
+The constraints in that prompt matter. "Don't add information" prevents the AI from inventing features. "Don't change the tone" keeps your voice intact. "If something is unclear, leave it alone" stops it from papering over gaps with generic filler.
+
+## Prompts That Work
+
+A few specific prompts I reuse:
+
+**For a README intro:**
+
+```
+Here's what I'd tell someone in an elevator about this project: [one sentence].
+Turn that into a three-sentence README intro that leads with the problem,
+not the solution.
+```
+
+**For a function docstring:**
+
+```
+Here's a function: [paste]. Write a one-paragraph docstring. Describe
+what it does, what it returns, and one non-obvious thing about its
+behavior. Don't describe the parameters — the types already do that.
+```
+
+**For a release note:**
+
+```
+Here are the commits since the last release: [paste git log]. Group them
+into "Features," "Fixes," and "Internal." Skip anything that's only
+useful to contributors. Write it so a user who hasn't looked at the code
+in three months can tell if they need to upgrade.
+```
+
+**For tightening anything:**
+
+```
+Cut 30% without losing meaning. Prefer specifics over generalities.
+Delete any sentence that could appear in any document.
+```
+
+That last one is my most-used. It works on blog drafts, commit messages, Slack announcements, and PR descriptions.
+
+## What AI Is Bad At
+
+Knowing where these are saves you from fighting with the tool.
+
+**Capturing institutional memory.** If the reason you made a decision is "because of an incident in Q2 that took the site down for four hours," the AI doesn't know that and can't guess it. Write that part yourself.
+
+**Knowing what to leave out.** AI wants to be helpful, which means it wants to include everything. Good docs are ruthless about cutting. A README with fifteen sections gets read less than a README with five.
+
+**Staying consistent with the rest of the codebase.** If your project calls it a "workspace" and the AI draft says "project," you'll have to fix that everywhere. The AI doesn't see the rest of the docs.
+
+**Accurate code examples in niche stacks.** The more specific or recent your stack, the more likely the AI's example code is subtly wrong. Always run the examples.
+
+## Maintenance
+
+The docs you wrote six months ago are lying to someone right now. A few habits that help:
+
+**Regenerate the "install" section on major version bumps.** Install steps rot fast. A thirty-second AI pass to check them against the current `package.json` is worth it.
+
+**Diff the changelog against the README on each release.** If you added a feature and didn't update the usage section, the README is stale. AI is good at this catch — paste both and ask "does the README need to be updated to reflect these changes?"
+
+**Treat docs like code.** Docs changes go in PRs. Stale docs get issues filed against them. The "untouched for two years" README is usually the one misleading the most people.
+
+## The Meta Point
+
+The point of using AI for docs isn't to skip writing them. It's to reduce the activation energy enough that you actually do it. Most bad docs aren't bad because the author couldn't write — they're bad because the author ran out of energy halfway through.
+
+If the AI handles the grunt work — the structure, the boilerplate, the "okay now I need to write a fourth bullet" moments — you can spend your energy on the parts only you can write: why the project exists, what it's for, and what to watch out for.
+
+## Pairs Well With
+
+- [Make Slide Decks from Markdown with Marp](/guides/slides-from-markdown-with-marp) — the same workflow applied to presentations.
+- [Prompt Engineering for Code](/guides/prompt-engineering-for-code) — general techniques for getting more out of AI tools.

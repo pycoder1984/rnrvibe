@@ -1,0 +1,284 @@
+---
+title: "Make Slide Decks from Markdown with Marp"
+date: "2026-04-12"
+description: "Write presentations as Markdown files and export them to PDF, PPTX, or HTML with Marp. Full walkthrough — install, frontmatter, themes, images, speaker notes, and CI export."
+tags: ["marp", "markdown", "presentations", "tooling"]
+readTime: "10 min read"
+difficulty: "Beginner"
+---
+
+# Make Slide Decks from Markdown with Marp
+
+If you've ever fought with PowerPoint's text boxes or Google Slides' layout quirks just to make a technical talk look decent, Marp is the tool you want. You write Markdown, it renders slides. You can export to PDF, PPTX, or HTML from the command line. The deck lives in your repo next to the code it's about, it diffs cleanly in git, and it's trivial to regenerate when content changes.
+
+This guide covers the full workflow: install, your first deck, frontmatter, themes, images, speaker notes, and wiring it into CI so your deck rebuilds on every commit.
+
+## What Marp Actually Is
+
+Marp is three things that share a rendering core:
+
+- **Marp CLI** — a command-line tool that converts Markdown to PDF/PPTX/HTML/PNG
+- **Marp for VS Code** — a VS Code extension that shows a live preview in the editor
+- **Marpit** — the underlying framework that turns Markdown into slide HTML
+
+You can mix and match. I draft in VS Code with the extension for live preview, then export via CLI when I'm done — same Markdown file, same output either way.
+
+## Install
+
+Pick whichever fits your workflow:
+
+**CLI (standalone binary via npx, no install needed):**
+
+```bash
+npx @marp-team/marp-cli@latest deck.md --pdf
+```
+
+**CLI (global install):**
+
+```bash
+npm install -g @marp-team/marp-cli
+marp deck.md --pdf
+```
+
+**VS Code extension:** search "Marp for VS Code" in the Extensions panel and install it.
+
+If you want PPTX export with editable text (not flat images), install Chrome or Chromium — Marp shells out to it for PPTX conversion.
+
+## Your First Deck
+
+Create `deck.md`:
+
+```markdown
+---
+marp: true
+theme: default
+---
+
+# Hello, Marp
+
+A presentation written in Markdown.
+
+---
+
+## Slide two
+
+- Bullet one
+- Bullet two
+- Bullet three
+
+---
+
+## Slide three
+
+Press `←` and `→` to navigate when previewing in VS Code.
+```
+
+The `---` separator on its own line creates a new slide. The `marp: true` line in frontmatter is what tells the CLI and VS Code extension to treat this file as a Marp deck rather than plain Markdown.
+
+Export it:
+
+```bash
+marp deck.md --pdf    # → deck.pdf
+marp deck.md --pptx   # → deck.pptx
+marp deck.md --html   # → deck.html (self-contained, no server needed)
+```
+
+## Frontmatter Options
+
+Frontmatter at the top of the file controls deck-wide settings. The ones I reach for most:
+
+```yaml
+---
+marp: true
+theme: gaia              # default | gaia | uncover (built-in themes)
+paginate: true           # show page numbers
+size: 16:9               # or 4:3
+header: "My Talk"        # text shown at top of every slide
+footer: "rnrvibe.com"    # text shown at bottom
+backgroundColor: "#0a0a0a"
+color: "#f5f5f5"
+---
+```
+
+`theme: gaia` is my usual pick for dark-background decks. `theme: uncover` is cleaner and more typographic.
+
+## Per-Slide Directives
+
+To change settings for a single slide instead of the whole deck, use HTML comments:
+
+```markdown
+---
+marp: true
+theme: default
+paginate: true
+---
+
+# Title slide
+
+<!-- _paginate: false -->
+
+---
+
+# Normal slide with page number
+```
+
+The underscore prefix (`_paginate`) means "apply this to the current slide only." Drop the underscore (`paginate: true`) and it applies from that slide onward.
+
+Other useful ones:
+
+```markdown
+<!-- _backgroundColor: #1e1b4b -->
+<!-- _color: white -->
+<!-- _class: lead -->
+```
+
+The `lead` class is built into the default theme and centers a slide's content — perfect for title slides and section breaks.
+
+## Images
+
+Standard Markdown image syntax works:
+
+```markdown
+![alt text](./diagram.png)
+```
+
+Marp adds a few modifiers you won't find in plain Markdown:
+
+```markdown
+![bg](./hero.jpg)                    <!-- full background image -->
+![bg left](./photo.jpg)              <!-- left half -->
+![bg right:40%](./photo.jpg)         <!-- right 40% -->
+![bg blur:8px brightness:0.5](./x.jpg)  <!-- with CSS filters -->
+![w:400](./logo.png)                 <!-- fixed width -->
+```
+
+Multiple `![bg]` images on the same slide split the background into columns automatically — useful for before/after comparisons.
+
+## Code Blocks
+
+Fenced code blocks render with syntax highlighting:
+
+````markdown
+```ts
+function greet(name: string) {
+  return `Hello, ${name}`;
+}
+```
+````
+
+If a block is too tall for a slide, shrink it with a CSS directive:
+
+```markdown
+<style scoped>
+pre { font-size: 0.7em; }
+</style>
+
+```ts
+// long code block here
+```
+```
+
+`<style scoped>` only affects the current slide. `<style>` without `scoped` applies to the rest of the deck.
+
+## Speaker Notes
+
+HTML comments that aren't Marp directives become speaker notes in PPTX output:
+
+```markdown
+## Slide with notes
+
+The bullet the audience sees.
+
+<!--
+Talk track: explain the tradeoff we hit in Q2, and why we ended up reverting.
+-->
+```
+
+These show up in PowerPoint's presenter view after you export to PPTX. They don't render in HTML or PDF output.
+
+## Custom Theme
+
+Built-in themes get you 80% of the way. For the other 20%, point `theme:` at your own CSS file:
+
+```bash
+marp deck.md --theme my-theme.css --pdf
+```
+
+A minimal custom theme:
+
+```css
+/* @theme my-theme */
+@import "default";
+
+section {
+  background: #0a0a0a;
+  color: #f5f5f5;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+h1 {
+  color: #a855f7;
+}
+
+section.lead h1 {
+  font-size: 3em;
+  text-align: center;
+}
+```
+
+The `@import "default"` pulls in the base styles so you only override what you care about. Each slide is a `<section>` element, so targeting `section` means "every slide."
+
+## Building It Into CI
+
+A deck checked into a repo should rebuild itself. Here's a GitHub Actions job that does exactly that:
+
+```yaml
+name: Build slides
+
+on:
+  push:
+    paths:
+      - "slides/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: marp-team/marp-cli-action@v4
+        with:
+          config-file: ./slides/.marprc.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slides
+          path: slides/*.pdf
+```
+
+The `.marprc.yml` config file lets you set defaults for the whole directory:
+
+```yaml
+inputDir: slides
+output: slides.pdf
+theme: ./slides/theme.css
+pdf: true
+allowLocalFiles: true
+```
+
+`allowLocalFiles: true` is what lets Marp pull in images from disk during CLI export. Without it, only remote URLs work — a safety default that bites you the first time.
+
+## Why This Approach Wins
+
+A few reasons the Markdown-to-slides workflow has stuck for me:
+
+- **Diffs are readable.** A PR that edits three bullets actually shows three changed lines, not a binary blob.
+- **No layout babysitting.** When you drop a slide, nothing shifts. When you add one, nothing breaks.
+- **Drafting is fast.** Bullets and code blocks are the two things Markdown is best at, and those are 90% of technical slides.
+- **Regeneration is free.** Change the theme, rerun the CLI, every deck in the repo picks up the new look.
+
+The cost: you lose some of the visual polish that comes from hand-placed shapes and gradients. For a keynote at a design conference, use Keynote. For every other deck, Marp is faster, cleaner, and lives better in a repo.
+
+## Where to Go Next
+
+- Marp's [official docs](https://marp.app/) cover the full directive reference.
+- Pair Marp with AI — drop your bullet points into Claude or ChatGPT and ask for a tightened version, then paste the output back. Rewrites that would take twenty minutes in PowerPoint take two here.
+- Check out our [writing documentation with AI](/guides/writing-documentation-with-ai) guide for the same workflow applied to READMEs and wikis.

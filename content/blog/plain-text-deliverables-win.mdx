@@ -1,0 +1,82 @@
+---
+title: "Plain-Text Deliverables Win Long-Term"
+date: "2026-04-12"
+description: "Why the artifacts that survive — READMEs, Markdown decks, config files — are the ones you can open in any editor, diff in git, and grep from the command line."
+tags: ["tools", "workflow", "opinion"]
+readTime: "4 min read"
+---
+
+# Plain-Text Deliverables Win Long-Term
+
+Every team I've worked on has a graveyard of files they can't open anymore. The `.key` from the 2019 all-hands. The `.sketch` of a UI nobody remembers shipping. The `.psd` from a designer who left. The `.docx` that's somehow a blank page now. The proprietary format of a tool that got acquired and shut down.
+
+The files that survive, year after year, tool change after tool change, are the ones stored in plain text.
+
+## What Counts
+
+Plain-text deliverables are the ones you can:
+
+- Open in any editor, including the terminal
+- Diff line-by-line in git
+- Grep across the whole repo from the command line
+- Edit on any machine without installing the app that made them
+- Read ten years from now without a migration script
+
+Markdown files. Config files. CSVs. YAML. JSON. SQL dumps. Source code. That's basically it. Everything else is a black box — a binary blob that depends on a specific program to be legible.
+
+## The Failure Mode
+
+The pattern goes like this. You start a project. You pick the best tool for each deliverable: Figma for design, Notion for docs, Google Slides for decks, Asana for tasks. Each tool is great in isolation. Each is the right choice for the moment.
+
+Three years later:
+
+- Figma has pivoted its pricing and the old files are behind a paywall
+- The Notion workspace has 400 pages and nobody knows which ones are current
+- Google Slides exports PowerPoints that are 2 MB of unstyled text
+- Asana got replaced by Linear and the history didn't come with
+
+The content isn't gone, exactly. It's just stranded in tools whose priorities have drifted away from yours.
+
+The same three years' worth of plain-text artifacts — READMEs, MDX posts, Markdown decks, config files — still open in any editor, still diff in git, still grep from the command line. Nothing about them has aged.
+
+## Why This Keeps Happening
+
+Rich-text and visual tools make the first 10% of a project faster and the last 90% slower.
+
+The first 10%: the tool's templates, shortcuts, and drag-and-drop interface genuinely help. A Figma mockup looks better on day one than anything you'd assemble by hand. A Notion doc is more attractive than a Markdown file.
+
+The last 90% is editing, maintaining, collaborating, version-controlling, searching, and migrating. All of that is slower in a visual tool because the tool is in the way. You can't grep a Figma file. You can't diff a Notion page. You can't merge two Google Docs. Every interaction has to go through the app's UI, which is a bottleneck the tool doesn't think it has.
+
+Plain text flips the ratio. Slower on day one, faster forever after.
+
+## The Test
+
+When you're picking a tool for a deliverable, ask: *what happens to this artifact when the tool goes away?*
+
+If the answer is "I can still open the file in any editor," you're fine. If the answer is "I'd need to export, and the export is lossy," you're betting on the tool's longevity. Sometimes that bet is worth it — for a marketing site or a one-off proposal, sure. For anything you expect to care about in two years, it probably isn't.
+
+## What This Looks Like in Practice
+
+A few concrete swaps I've made and haven't regretted:
+
+- Google Slides → [Marp](/guides/slides-from-markdown-with-marp) (Markdown slides)
+- Notion → Markdown files in a repo
+- Asana → a `TODO.md` for small projects, GitHub Issues for larger ones
+- Google Docs → Markdown drafts, shared via PR
+- Figma (for simple diagrams) → [Mermaid](https://mermaid.js.org) or [Excalidraw](https://excalidraw.com) exported to SVG
+
+I still use Figma for actual UI design. I still use Google Docs for things I'm collaborating on with non-technical people who'd hate Markdown. The rule isn't "never use rich-text tools" — it's "default to plain text and only reach for rich text when the benefit is concrete."
+
+## The AI Angle
+
+This has gotten more important in the last couple of years, not less. AI tools are great at working with text. Every chat assistant can read a Markdown file, summarize it, rewrite it, or cross-reference it with ten others. Ask the same assistant to work with a Figma file and you get a shrug.
+
+The deliverables you can pipe into a prompt are the ones that compound. The ones locked in a proprietary format are stuck in 2024.
+
+## Plain Text as a Design Constraint
+
+The other thing nobody mentions: plain text forces clarity. When you can't rely on a sidebar, a fancy layout, or a hand-drawn diagram to carry your meaning, the words have to do the work. The docs get sharper. The decks get tighter. The code gets better comments.
+
+A Markdown README that you'd actually enjoy reading is harder to write than a Notion page that looks good. That's the point. The forcing function is doing something the tool can't.
+
+Pick tools that put the pressure on the right thing.
