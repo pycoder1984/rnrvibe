@@ -232,7 +232,7 @@ export default function Home() {
         <StatsCounter
           stats={[
             { label: "AI Tools", value: 27 },
-            { label: "Projects", value: 19 },
+            { label: "Projects", value: 22 },
             { label: "Blog Posts", value: 29 },
             { label: "Guides", value: 26 },
           ]}
