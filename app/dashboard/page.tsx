@@ -32,6 +32,34 @@ interface DashboardData {
   logs: LogEntry[];
 }
 
+interface SystemMetrics {
+  cpu: { usage: number; cores: number; model: string; loadavg: number[] };
+  memory: { totalBytes: number; usedBytes: number; freeBytes: number; usagePercent: number };
+  gpu: {
+    name: string;
+    memoryTotalMb: number;
+    memoryUsedMb: number;
+    memoryFreeMb: number;
+    utilization: number;
+    temperature: number;
+  } | null;
+  timestamp: number;
+}
+
+function formatBytes(bytes: number): string {
+  const gb = bytes / 1024 ** 3;
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = bytes / 1024 ** 2;
+  return `${mb.toFixed(0)} MB`;
+}
+
+function barColor(pct: number): string {
+  if (pct >= 85) return "bg-red-500";
+  if (pct >= 65) return "bg-orange-500";
+  if (pct >= 40) return "bg-yellow-500";
+  return "bg-green-500";
+}
+
 const statusColors: Record<string, string> = {
   success: "text-green-400 bg-green-500/10",
   error: "text-red-400 bg-red-500/10",
@@ -41,6 +69,7 @@ const statusColors: Record<string, string> = {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -66,12 +95,28 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/system-metrics`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setMetrics(json);
+    } catch {
+      /* ignore — metrics are best-effort */
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
+    fetchMetrics();
     if (!autoRefresh) return;
     const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
-  }, [fetchData, autoRefresh]);
+    const metricsInterval = setInterval(fetchMetrics, 2000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(metricsInterval);
+    };
+  }, [fetchData, fetchMetrics, autoRefresh]);
 
   const clearLogs = async () => {
     if (!confirm("Clear all logs?")) return;
@@ -145,6 +190,45 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {/* System metrics */}
+        {metrics && (
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">System Resources</h2>
+              <span className="text-[10px] text-neutral-600 font-mono">
+                {metrics.cpu.cores} cores · {metrics.cpu.model.replace(/\s+/g, " ").trim()}
+              </span>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <MetricBar
+                label="CPU"
+                percent={metrics.cpu.usage}
+                primary={`${metrics.cpu.usage.toFixed(1)}%`}
+                secondary={`load ${metrics.cpu.loadavg[0]?.toFixed(2) ?? "—"}`}
+              />
+              <MetricBar
+                label="RAM"
+                percent={metrics.memory.usagePercent}
+                primary={`${formatBytes(metrics.memory.usedBytes)} / ${formatBytes(metrics.memory.totalBytes)}`}
+                secondary={`${metrics.memory.usagePercent.toFixed(1)}%`}
+              />
+              {metrics.gpu ? (
+                <MetricBar
+                  label="VRAM"
+                  percent={(metrics.gpu.memoryUsedMb / metrics.gpu.memoryTotalMb) * 100}
+                  primary={`${metrics.gpu.memoryUsedMb} / ${metrics.gpu.memoryTotalMb} MB`}
+                  secondary={`GPU ${metrics.gpu.utilization}% · ${metrics.gpu.temperature}°C`}
+                />
+              ) : (
+                <div className="rounded-lg border border-neutral-800 bg-neutral-950/50 p-4">
+                  <div className="text-xs text-neutral-500 mb-1">VRAM</div>
+                  <div className="text-sm text-neutral-600">nvidia-smi unavailable</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Stats cards */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
@@ -312,6 +396,35 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function MetricBar({
+  label,
+  percent,
+  primary,
+  secondary,
+}: {
+  label: string;
+  percent: number;
+  primary: string;
+  secondary?: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  return (
+    <div className="rounded-lg border border-neutral-800 bg-neutral-950/50 p-4">
+      <div className="flex items-baseline justify-between mb-2">
+        <span className="text-xs text-neutral-500 uppercase tracking-wider font-semibold">{label}</span>
+        {secondary && <span className="text-[10px] text-neutral-500 font-mono">{secondary}</span>}
+      </div>
+      <div className="text-lg font-bold font-mono mb-2 text-white">{primary}</div>
+      <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${barColor(clamped)} rounded-full transition-all duration-500 ease-out`}
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
     </div>
   );
 }
