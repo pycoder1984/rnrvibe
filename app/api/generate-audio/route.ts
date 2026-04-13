@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { addLog } from "@/lib/request-log";
 import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 
@@ -10,6 +11,9 @@ const AUDIO_URL = process.env.AUDIO_URL || "http://127.0.0.1:7870";
 const GENERATION_TIMEOUT_MS = 10 * 60 * 1000;
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
+
+// Job-record lifetime in the in-memory map. Generous so slow polls still find the result.
+const JOB_TTL_MS = 20 * 60 * 1000;
 
 const ALLOWED_MODES = ["music", "sfx"] as const;
 type Mode = (typeof ALLOWED_MODES)[number];
@@ -23,7 +27,124 @@ const ALLOWED_MUSIC_MODELS = new Set([
   "facebook/musicgen-large",
 ]);
 
+type JobBase = {
+  createdAt: number;
+  mode: Mode;
+  duration: number;
+  model?: string;
+};
+type Job =
+  | (JobBase & { status: "pending" })
+  | (JobBase & { status: "done"; audio: string })
+  | (JobBase & { status: "error"; error: string });
+
+// Long-running local server — in-memory state is fine (single process).
+const jobs = new Map<string, Job>();
+
+function sweepJobs() {
+  const now = Date.now();
+  for (const [id, job] of jobs) {
+    if (now - job.createdAt > JOB_TTL_MS) jobs.delete(id);
+  }
+}
+
+async function runJob(
+  id: string,
+  ip: string,
+  prompt: string,
+  safeMode: Mode,
+  clampedDuration: number,
+  safeModel: string | undefined
+) {
+  const started = Date.now();
+  const endpoint = safeMode === "music" ? "/music" : "/sfx";
+  const reqBody =
+    safeMode === "music"
+      ? { prompt, duration: clampedDuration, ...(safeModel ? { model: safeModel } : {}) }
+      : { prompt, duration: clampedDuration };
+
+  try {
+    const res = await fetch(`${AUDIO_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reqBody),
+      signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const msg = text || `Audio server returned ${res.status}`;
+      jobs.set(id, {
+        status: "error",
+        createdAt: Date.now(),
+        mode: safeMode,
+        duration: clampedDuration,
+        model: safeModel,
+        error: "Generation failed. Check the audio server logs.",
+      });
+      addLog({
+        timestamp: new Date().toISOString(),
+        ip,
+        tool: "audio-generator",
+        prompt: prompt.slice(0, 500),
+        response: `${safeMode}, ${clampedDuration}s`,
+        responseTimeMs: Date.now() - started,
+        status: "error",
+        error: msg.slice(0, 200),
+      });
+      return;
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const dataUrl = `data:audio/wav;base64,${base64}`;
+
+    jobs.set(id, {
+      status: "done",
+      createdAt: Date.now(),
+      mode: safeMode,
+      duration: clampedDuration,
+      model: safeModel,
+      audio: dataUrl,
+    });
+
+    addLog({
+      timestamp: new Date().toISOString(),
+      ip,
+      tool: "audio-generator",
+      prompt: prompt.slice(0, 500),
+      response: `${safeMode}, ${clampedDuration}s${safeModel ? `, ${safeModel}` : ""}`,
+      responseTimeMs: Date.now() - started,
+      status: "success",
+    });
+  } catch (err) {
+    const isTimeout =
+      err instanceof DOMException && (err.name === "AbortError" || err.name === "TimeoutError");
+    jobs.set(id, {
+      status: "error",
+      createdAt: Date.now(),
+      mode: safeMode,
+      duration: clampedDuration,
+      model: safeModel,
+      error: isTimeout
+        ? "Generation timed out. Try a shorter duration."
+        : "Lost connection to audio server during generation.",
+    });
+    addLog({
+      timestamp: new Date().toISOString(),
+      ip,
+      tool: "audio-generator",
+      prompt: prompt.slice(0, 500),
+      response: `${safeMode}, ${clampedDuration}s`,
+      responseTimeMs: Date.now() - started,
+      status: isTimeout ? "timeout" : "error",
+      error: isTimeout ? "Generation timed out" : "Lost connection to audio server",
+    });
+  }
+}
+
 export async function POST(req: NextRequest) {
+  sweepJobs();
   const ip = getClientIp(req);
   const { limited } = checkRateLimit("audio-gen", ip, RATE_LIMIT, RATE_WINDOW_MS);
 
@@ -86,7 +207,7 @@ export async function POST(req: NextRequest) {
     safeModel = model;
   }
 
-  // Probe the audio server before kicking off the long request
+  // Probe the audio server before creating a job
   try {
     const ping = await fetch(`${AUDIO_URL}/health`, { signal: AbortSignal.timeout(5000) });
     if (!ping.ok) throw new Error();
@@ -97,80 +218,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const started = Date.now();
-  const endpoint = safeMode === "music" ? "/music" : "/sfx";
-  const reqBody =
-    safeMode === "music"
-      ? { prompt, duration: clampedDuration, ...(safeModel ? { model: safeModel } : {}) }
-      : { prompt, duration: clampedDuration };
+  const id = randomUUID();
+  jobs.set(id, {
+    status: "pending",
+    createdAt: Date.now(),
+    mode: safeMode,
+    duration: clampedDuration,
+    model: safeModel,
+  });
 
-  try {
-    const res = await fetch(`${AUDIO_URL}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reqBody),
-      signal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-    });
+  // Fire and forget — the client polls GET for status.
+  void runJob(id, ip, prompt, safeMode, clampedDuration, safeModel);
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      const msg = text || `Audio server returned ${res.status}`;
-      addLog({
-        timestamp: new Date().toISOString(),
-        ip,
-        tool: "audio-generator",
-        prompt: prompt.slice(0, 500),
-        response: `${safeMode}, ${clampedDuration}s`,
-        responseTimeMs: Date.now() - started,
-        status: "error",
-        error: msg.slice(0, 200),
-      });
-      return NextResponse.json(
-        { error: "Generation failed. Check the audio server logs." },
-        { status: 502 }
-      );
-    }
+  return NextResponse.json({ id, status: "pending" });
+}
 
-    const arrayBuffer = await res.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    const dataUrl = `data:audio/wav;base64,${base64}`;
+export async function GET(req: NextRequest) {
+  sweepJobs();
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-    addLog({
-      timestamp: new Date().toISOString(),
-      ip,
-      tool: "audio-generator",
-      prompt: prompt.slice(0, 500),
-      response: `${safeMode}, ${clampedDuration}s${safeModel ? `, ${safeModel}` : ""}`,
-      responseTimeMs: Date.now() - started,
-      status: "success",
-    });
+  const job = jobs.get(id);
+  if (!job) return NextResponse.json({ error: "Job not found or expired" }, { status: 404 });
 
-    return NextResponse.json({
-      audio: dataUrl,
-      mode: safeMode,
-      duration: clampedDuration,
-      model: safeModel,
-    });
-  } catch (err) {
-    const isTimeout =
-      err instanceof DOMException && (err.name === "AbortError" || err.name === "TimeoutError");
-    addLog({
-      timestamp: new Date().toISOString(),
-      ip,
-      tool: "audio-generator",
-      prompt: prompt.slice(0, 500),
-      response: `${safeMode}, ${clampedDuration}s`,
-      responseTimeMs: Date.now() - started,
-      status: isTimeout ? "timeout" : "error",
-      error: isTimeout ? "Generation timed out" : "Lost connection to audio server",
-    });
-    return NextResponse.json(
-      {
-        error: isTimeout
-          ? "Generation timed out. Try a shorter duration."
-          : "Lost connection to audio server during generation.",
-      },
-      { status: isTimeout ? 504 : 502 }
-    );
+  if (job.status === "pending") {
+    return NextResponse.json({ status: "pending" });
   }
+  if (job.status === "error") {
+    return NextResponse.json({ status: "error", error: job.error });
+  }
+  return NextResponse.json({
+    status: "done",
+    audio: job.audio,
+    mode: job.mode,
+    duration: job.duration,
+    model: job.model,
+  });
 }

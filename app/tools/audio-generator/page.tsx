@@ -92,32 +92,84 @@ export default function AudioGeneratorPage() {
     setGenerating(true);
     setError("");
 
+    const POLL_INTERVAL_MS = 3000;
+    const POLL_TIMEOUT_MS = 15 * 60 * 1000;
+    const snapshotPrompt = prompt.trim();
+    const snapshotMode = mode;
+    const snapshotDuration = duration;
+
     try {
-      const res = await fetch(`${getApiBase()}/api/generate-audio`, {
+      const startRes = await fetch(`${getApiBase()}/api/generate-audio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: prompt.trim(),
-          mode,
-          duration,
-          ...(mode === "music" ? { model: musicModel } : {}),
+          prompt: snapshotPrompt,
+          mode: snapshotMode,
+          duration: snapshotDuration,
+          ...(snapshotMode === "music" ? { model: musicModel } : {}),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || `Generation failed (${res.status})`);
+      const startData = await startRes.json();
+      if (!startRes.ok) {
+        setError(startData.error || `Generation failed (${startRes.status})`);
         return;
       }
+      const jobId = startData.id as string | undefined;
+      if (!jobId) {
+        setError("Server did not return a job id");
+        return;
+      }
+
+      // Poll until the job finishes. Short hops keep the connection well inside
+      // any Cloudflare Tunnel idle timeout, so a slow generation doesn't look
+      // like a dropped connection on the client.
+      const pollStart = Date.now();
+      let finalData:
+        | { status: string; audio?: string; error?: string; model?: string }
+        | null = null;
+
+      while (Date.now() - pollStart < POLL_TIMEOUT_MS) {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        try {
+          const pollRes = await fetch(
+            `${getApiBase()}/api/generate-audio?id=${encodeURIComponent(jobId)}`
+          );
+          const pollData = await pollRes.json();
+          if (!pollRes.ok) {
+            setError(pollData.error || `Generation failed (${pollRes.status})`);
+            return;
+          }
+          if (pollData.status === "pending") continue;
+          finalData = pollData;
+          break;
+        } catch {
+          // Transient poll error — keep retrying until POLL_TIMEOUT_MS.
+        }
+      }
+
+      if (!finalData) {
+        setError("Generation is taking longer than expected. Try again or use a shorter duration.");
+        return;
+      }
+      if (finalData.status === "error") {
+        setError(finalData.error || "Generation failed");
+        return;
+      }
+      if (!finalData.audio) {
+        setError("No audio returned");
+        return;
+      }
+
       // Chromium struggles to play large data: URLs in <audio>. Convert to
       // a blob: URL so playback works regardless of clip size.
-      const blob = await (await fetch(data.audio)).blob();
+      const blob = await (await fetch(finalData.audio)).blob();
       const blobUrl = URL.createObjectURL(blob);
       const clip: GeneratedClip = {
         id: Date.now(),
-        mode,
-        prompt: prompt.trim(),
-        duration,
-        model: data.model,
+        mode: snapshotMode,
+        prompt: snapshotPrompt,
+        duration: snapshotDuration,
+        model: finalData.model,
         audio: blobUrl,
         createdAt: Date.now(),
       };
