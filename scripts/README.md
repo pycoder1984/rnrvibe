@@ -10,8 +10,8 @@ calls Stable Diffusion.
 
 ```bash
 # 1. Install PyTorch for your hardware (see https://pytorch.org for the right command).
-#    Example for CUDA 12.1:
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+#    Example for CUDA 12.1 (pinned — audiocraft needs torch 2.x with CUDA):
+pip install torch==2.5.1 torchaudio==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
 
 # 2. Install audiocraft + API deps:
 pip install -r scripts/requirements-audio.txt
@@ -19,6 +19,33 @@ pip install -r scripts/requirements-audio.txt
 
 First `/music` or `/sfx` call downloads the model weights from Hugging Face
 (~2–4 GB each, cached to `~/.cache/huggingface/`). Subsequent calls are fast.
+
+### Windows install gotchas
+
+`audiocraft 1.3.0` pins dependencies that are painful on Windows + Python 3.10:
+
+- **`av==11.0.0`** has no prebuilt Windows wheel and needs Visual C++ Build Tools
+  to compile. Workaround: install a newer prebuilt wheel and then install
+  audiocraft with `--no-deps`:
+  ```bash
+  pip install --only-binary=:all: av            # installs av 17.x wheel
+  pip install audiocraft --no-deps
+  pip install demucs einops encodec flashy huggingface_hub hydra-core hydra_colorlog \
+              julius librosa num2words numpy protobuf sentencepiece spacy \
+              torchmetrics tqdm transformers fastapi "uvicorn[standard]"
+  ```
+- **`xformers<0.0.23`** has no wheel for recent Python/torch combos. audiocraft
+  only uses it as an optional attention backend (default is torch's native
+  attention), so you can safely make the import optional. Edit
+  `<site-packages>/audiocraft/modules/transformer.py`, replace
+  `from xformers import ops` with:
+  ```python
+  try:
+      from xformers import ops
+  except ImportError:
+      ops = None
+  ```
+  The startup warning about xFormers C++/CUDA extensions is harmless.
 
 ### Run
 

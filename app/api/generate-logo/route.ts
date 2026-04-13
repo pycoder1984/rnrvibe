@@ -4,11 +4,12 @@ import { getClientIp, checkRateLimit } from "@/lib/rate-limit";
 import { generate } from "@/lib/llm-provider";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 900;
 
 const SD_URL = process.env.SD_URL || "http://127.0.0.1:7860";
 
-const LLM_TIMEOUT_MS = 30_000;
-const SD_TIMEOUT_MS = 3 * 60 * 1000;
+const LLM_TIMEOUT_MS = 60_000;
+const SD_TIMEOUT_MS = 5 * 60 * 1000;
 const TOTAL_TIMEOUT_MS = 15 * 60 * 1000;
 
 const RATE_LIMIT = 5;

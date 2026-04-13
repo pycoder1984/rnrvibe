@@ -16,7 +16,7 @@ npm run lint                                # ESLint (flat config, eslint 9)
 
 No test framework is configured — there are no unit or integration tests.
 
-The startup bat file (`C:\Users\obaid\Desktop\start-rnrvibe.bat`) handles Ollama, the website (port 4000), and Cloudflare Tunnel.
+The startup bat file (`C:\Users\<you>\Desktop\start-rnrvibe.bat`) handles Ollama, the website (port 4000), and Cloudflare Tunnel.
 
 ## Tech stack
 

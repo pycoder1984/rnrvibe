@@ -32,7 +32,7 @@ npm run build
 npm run start -- -p 4000
 ```
 
-Or use the startup script: `C:\Users\obaid\Desktop\start-rnrvibe.bat` (starts Ollama, website on port 4000, and Cloudflare Tunnel).
+Or use the startup script: `C:\Users\<you>\Desktop\start-rnrvibe.bat` (starts Ollama, website on port 4000, and Cloudflare Tunnel).
 
 ## Project Structure
 
@@ -83,6 +83,14 @@ Runs on `http://127.0.0.1:7860` by default. Used by the Image Generator, Image S
 
 All three image tools check SD connectivity on page load and show an error banner with retry if it's unreachable.
 
+### Audio Server (MusicGen + AudioGen)
+
+Runs on `http://127.0.0.1:7870` by default. Used by the AI Audio Generator tool. Not started by `npm run dev` — launch manually with `python scripts/audio_server.py`. See [`scripts/README.md`](scripts/README.md) for one-time setup (Windows gotchas around `av` and `xformers` are documented there).
+
+| Env Variable | Default | Description |
+|---|---|---|
+| `AUDIO_URL` | `http://127.0.0.1:7870` | Local audio server base URL |
+
 ## Key Features
 
 - **28 AI Tools** — chat, code generation, image generation, logo design, music + sound-effect generation, code review, and more
@@ -100,6 +108,7 @@ All optional — defaults work for standard local setup:
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=gemma4:e4b
 SD_URL=http://127.0.0.1:7860
+AUDIO_URL=http://127.0.0.1:7870
 OPENROUTER_API_KEY=          # optional — enables cloud LLM fallback when Ollama is unreachable
 OPENROUTER_MODEL=            # optional — pin to a single free model; unset rotates through a fallback list
 ```

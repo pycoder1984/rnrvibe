@@ -64,5 +64,5 @@ KEY FILES
 Website code     -> C:\Projects\rnrvibe\app\page.tsx
 Website layout   -> C:\Projects\rnrvibe\app\layout.tsx
 Caddy config     -> C:\caddy\Caddyfile
-Tunnel config    -> C:\Users\obaid\.cloudflared\config.yml
+Tunnel config    -> C:\Users\<you>\.cloudflared\config.yml
 Tunnel ID        -> 058d989b-6278-4b00-b966-0c9c27dd231d
