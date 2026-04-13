@@ -108,13 +108,17 @@ export default function AudioGeneratorPage() {
         setError(data.error || `Generation failed (${res.status})`);
         return;
       }
+      // Chromium struggles to play large data: URLs in <audio>. Convert to
+      // a blob: URL so playback works regardless of clip size.
+      const blob = await (await fetch(data.audio)).blob();
+      const blobUrl = URL.createObjectURL(blob);
       const clip: GeneratedClip = {
         id: Date.now(),
         mode,
         prompt: prompt.trim(),
         duration,
         model: data.model,
-        audio: data.audio,
+        audio: blobUrl,
         createdAt: Date.now(),
       };
       setClips((prev) => [clip, ...prev]);
@@ -135,7 +139,23 @@ export default function AudioGeneratorPage() {
     document.body.removeChild(a);
   };
 
-  const remove = (id: number) => setClips((prev) => prev.filter((c) => c.id !== id));
+  const remove = (id: number) =>
+    setClips((prev) => {
+      const target = prev.find((c) => c.id === id);
+      if (target?.audio.startsWith("blob:")) URL.revokeObjectURL(target.audio);
+      return prev.filter((c) => c.id !== id);
+    });
+
+  useEffect(() => {
+    return () => {
+      setClips((prev) => {
+        prev.forEach((c) => {
+          if (c.audio.startsWith("blob:")) URL.revokeObjectURL(c.audio);
+        });
+        return prev;
+      });
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
