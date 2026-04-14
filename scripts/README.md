@@ -62,6 +62,22 @@ Override host/port/models with env vars:
 | `AUDIO_PORT` | `7870` | bind port |
 | `MUSICGEN_MODEL` | `facebook/musicgen-small` | `small` / `medium` / `large` |
 | `AUDIOGEN_MODEL` | `facebook/audiogen-medium` | AudioGen variant |
+| `AUDIO_CPU_FALLBACK` | `1` | Retry on CPU when CUDA errors (OOM, corrupted context). Slow but saves the request. Set to `0` to disable. |
+
+### When CUDA errors ("CUDA error: unknown error") appear
+
+Almost always caused by VRAM contention with Stable Diffusion or Ollama — once
+the CUDA context is poisoned, every subsequent request in the same Python
+process fails the same way. CPU fallback is on by default (`AUDIO_CPU_FALLBACK=1`)
+so the request still completes, just slowly.
+
+To drop cached models and free VRAM without restarting the process:
+
+```bash
+curl -X POST http://127.0.0.1:7870/reset
+```
+
+If the GPU itself is still unhealthy after that, restart `audio_server.py`.
 
 ### Tell the Next.js app where it lives
 

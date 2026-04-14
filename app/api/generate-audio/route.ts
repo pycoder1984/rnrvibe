@@ -73,14 +73,21 @@ async function runJob(
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      const msg = text || `Audio server returned ${res.status}`;
+      let detail = "";
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed.detail === "string") detail = parsed.detail;
+      } catch {
+        // Non-JSON body — fall back to raw text below.
+      }
+      const msg = detail || text || `Audio server returned ${res.status}`;
       jobs.set(id, {
         status: "error",
         createdAt: Date.now(),
         mode: safeMode,
         duration: clampedDuration,
         model: safeModel,
-        error: "Generation failed. Check the audio server logs.",
+        error: detail || "Generation failed. Check the audio server logs.",
       });
       addLog({
         timestamp: new Date().toISOString(),
