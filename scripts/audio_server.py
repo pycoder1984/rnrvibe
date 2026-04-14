@@ -103,10 +103,6 @@ def _is_oom(err: BaseException) -> bool:
     return "out of memory" in str(err).lower()
 
 
-def _is_cuda_error(err: BaseException) -> bool:
-    return "cuda" in str(err).lower()
-
-
 def _free_vram() -> None:
     gc.collect()
     if torch.cuda.is_available():
@@ -169,95 +165,89 @@ def health():
     }
 
 
-@app.post("/music")
-def music(req: MusicRequest):
-    model_id = req.model or DEFAULT_MUSIC_MODEL
+def _generate_with_fallback(
+    label: str,
+    model_cls,  # MusicGen or AudioGen
+    cache: dict,
+    getter,  # _get_music or _get_sfx
+    model_id: str,
+    prompt: str,
+    duration: float,
+):
+    """Run generation on GPU; on any non-OOM failure, fall back to CPU if enabled.
+
+    Returns (wav_tensor, sample_rate). Raises HTTPException on unrecoverable
+    failures. The OOM path stays explicit because the user can act on it
+    (close SD/Ollama, pick a smaller model).
+    """
     _free_vram()
     try:
-        model = _get_music(model_id)
-    except Exception as e:
-        raise HTTPException(502, f"Failed to load MusicGen model '{model_id}': {e}")
-
-    model.set_generation_params(duration=req.duration)
-    try:
+        model = getter(model_id)
+        model.set_generation_params(duration=duration)
         with torch.no_grad():
-            wav = model.generate([req.prompt], progress=False)
+            wav = model.generate([prompt], progress=False)
+        return wav, model.sample_rate
     except Exception as e:
-        # The CUDA context is likely poisoned — evict the cached model so the
-        # next request reloads cleanly instead of hitting the same bad state.
-        _music_cache.pop(model_id, None)
+        # Evict the cached model — the CUDA context may be poisoned, so keeping
+        # it around guarantees the next request fails the same way.
+        cache.pop(model_id, None)
         _free_vram()
+
         if _is_oom(e):
             raise HTTPException(
                 503,
-                "GPU out of memory. Close Stable Diffusion / Ollama or pick a smaller MusicGen model.",
+                f"GPU out of memory. Close Stable Diffusion / Ollama or lower the duration/model size. ({e})",
             )
-        if _is_cuda_error(e):
-            if CPU_FALLBACK:
-                sys.stderr.write(f"[audio] CUDA failed, retrying MusicGen on CPU: {e}\n")
-                try:
-                    cpu_model = MusicGen.get_pretrained(model_id, device="cpu")
-                    cpu_model.set_generation_params(duration=req.duration)
-                    with torch.no_grad():
-                        wav = cpu_model.generate([req.prompt], progress=False)
-                    data = _encode_wav(wav[0], cpu_model.sample_rate)
-                    return Response(content=data, media_type="audio/wav")
-                except Exception as cpu_err:
-                    raise HTTPException(
-                        500, f"MusicGen failed on both GPU and CPU: {cpu_err}"
-                    )
+
+        if not CPU_FALLBACK:
             raise HTTPException(
                 502,
-                f"GPU state corrupted — restart audio_server.py (or set AUDIO_CPU_FALLBACK=1). ({e})",
+                f"{label} failed on GPU — restart audio_server.py, or set AUDIO_CPU_FALLBACK=1 to auto-retry on CPU. ({e})",
             )
-        raise HTTPException(500, f"MusicGen failed: {e}")
 
-    data = _encode_wav(wav[0], model.sample_rate)
+        sys.stderr.write(f"[audio] GPU failed, retrying {label} on CPU: {e}\n")
+        try:
+            cpu_model = model_cls.get_pretrained(model_id, device="cpu")
+            cpu_model.set_generation_params(duration=duration)
+            with torch.no_grad():
+                wav = cpu_model.generate([prompt], progress=False)
+            return wav, cpu_model.sample_rate
+        except Exception as cpu_err:
+            raise HTTPException(
+                500,
+                f"{label} failed on both GPU and CPU. GPU: {e}. CPU: {cpu_err}",
+            )
+
+
+@app.post("/music")
+def music(req: MusicRequest):
+    model_id = req.model or DEFAULT_MUSIC_MODEL
+    wav, sample_rate = _generate_with_fallback(
+        "MusicGen",
+        MusicGen,
+        _music_cache,
+        _get_music,
+        model_id,
+        req.prompt,
+        req.duration,
+    )
+    data = _encode_wav(wav[0], sample_rate)
     return Response(content=data, media_type="audio/wav")
 
 
 @app.post("/sfx")
 def sfx(req: SfxRequest):
     model_id = DEFAULT_SFX_MODEL
-    _free_vram()
-    try:
-        model = _get_sfx(model_id)
-    except Exception as e:
-        raise HTTPException(502, f"Failed to load AudioGen model: {e}")
-
-    model.set_generation_params(duration=req.duration)
-    try:
-        with torch.no_grad():
-            wav = model.generate([req.prompt], progress=False)
-    except Exception as e:
-        _sfx_cache.pop(model_id, None)
-        _free_vram()
-        if _is_oom(e):
-            raise HTTPException(
-                503,
-                "GPU out of memory. Close Stable Diffusion / Ollama or lower the duration.",
-            )
-        if _is_cuda_error(e):
-            if CPU_FALLBACK:
-                sys.stderr.write(f"[audio] CUDA failed, retrying AudioGen on CPU: {e}\n")
-                try:
-                    cpu_model = AudioGen.get_pretrained(model_id, device="cpu")
-                    cpu_model.set_generation_params(duration=req.duration)
-                    with torch.no_grad():
-                        wav = cpu_model.generate([req.prompt], progress=False)
-                    data = _encode_wav(wav[0], cpu_model.sample_rate)
-                    return Response(content=data, media_type="audio/wav")
-                except Exception as cpu_err:
-                    raise HTTPException(
-                        500, f"AudioGen failed on both GPU and CPU: {cpu_err}"
-                    )
-            raise HTTPException(
-                502,
-                f"GPU state corrupted — restart audio_server.py (or set AUDIO_CPU_FALLBACK=1). ({e})",
-            )
-        raise HTTPException(500, f"AudioGen failed: {e}")
-
-    data = _encode_wav(wav[0], model.sample_rate)
+    wav, sample_rate = _generate_with_fallback(
+        "AudioGen",
+        AudioGen,
+        _sfx_cache,
+        _get_sfx,
+        model_id,
+        req.prompt,
+        req.duration,
+    )
+    data = _encode_wav(wav[0], sample_rate)
     return Response(content=data, media_type="audio/wav")
 
 
