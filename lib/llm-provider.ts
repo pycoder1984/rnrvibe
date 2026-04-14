@@ -59,9 +59,9 @@ let ollamaAvailable: boolean | null = null;
 let lastOllamaCheck = 0;
 const OLLAMA_CHECK_INTERVAL_MS = 30_000; // re-check every 30s
 
-async function isOllamaUp(): Promise<boolean> {
+async function isOllamaUp(force = false): Promise<boolean> {
   const now = Date.now();
-  if (ollamaAvailable !== null && now - lastOllamaCheck < OLLAMA_CHECK_INTERVAL_MS) {
+  if (!force && ollamaAvailable !== null && now - lastOllamaCheck < OLLAMA_CHECK_INTERVAL_MS) {
     return ollamaAvailable;
   }
 
@@ -75,6 +75,11 @@ async function isOllamaUp(): Promise<boolean> {
   }
   lastOllamaCheck = now;
   return ollamaAvailable;
+}
+
+function markOllamaDown() {
+  ollamaAvailable = false;
+  lastOllamaCheck = Date.now();
 }
 
 export type LLMProvider = "ollama" | "openrouter";
@@ -123,34 +128,35 @@ function openRouterBody(model: string, system: string, prompt: string, stream: b
 // Streaming request
 // ---------------------------------------------------------------------------
 
-export async function streamGenerate(opts: {
+async function streamOllama(opts: {
   prompt: string;
   system: string;
   signal?: AbortSignal;
-  provider?: LLMProvider;
   model?: string;
-}): Promise<{ provider: LLMProvider; body: ReadableStream<Uint8Array> }> {
-  const provider = await getActiveProvider(opts.provider);
+}): Promise<ReadableStream<Uint8Array>> {
+  const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: opts.model || OLLAMA_MODEL,
+      prompt: opts.prompt,
+      system: opts.system,
+      stream: true,
+      options: { temperature: 0.7, num_predict: 2048 },
+    }),
+    signal: opts.signal,
+  });
 
-  if (provider === "ollama") {
-    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: opts.model || OLLAMA_MODEL,
-        prompt: opts.prompt,
-        system: opts.system,
-        stream: true,
-        options: { temperature: 0.7, num_predict: 2048 },
-      }),
-      signal: opts.signal,
-    });
+  if (!res.ok || !res.body) throw new Error(`Ollama request failed (${res.status})`);
+  return res.body;
+}
 
-    if (!res.ok || !res.body) throw new Error("Ollama request failed");
-    return { provider, body: res.body };
-  }
-
-  // OpenRouter — try models in order
+async function streamOpenRouter(opts: {
+  prompt: string;
+  system: string;
+  signal?: AbortSignal;
+  model?: string;
+}): Promise<ReadableStream<Uint8Array>> {
   const models = getModelsToTry(opts.model);
   let lastError = "";
 
@@ -163,9 +169,7 @@ export async function streamGenerate(opts: {
         signal: opts.signal,
       });
 
-      if (res.ok && res.body) {
-        return { provider, body: res.body };
-      }
+      if (res.ok && res.body) return res.body;
 
       lastError = await res.text().catch(() => `status ${res.status}`);
     } catch (err) {
@@ -176,39 +180,68 @@ export async function streamGenerate(opts: {
   throw new Error(`All OpenRouter models failed. Last error: ${lastError}`);
 }
 
-// ---------------------------------------------------------------------------
-// Non-streaming request
-// ---------------------------------------------------------------------------
-
-export async function generate(opts: {
+export async function streamGenerate(opts: {
   prompt: string;
   system: string;
   signal?: AbortSignal;
   provider?: LLMProvider;
   model?: string;
-}): Promise<{ provider: LLMProvider; text: string }> {
+}): Promise<{ provider: LLMProvider; body: ReadableStream<Uint8Array> }> {
   const provider = await getActiveProvider(opts.provider);
 
   if (provider === "ollama") {
-    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: opts.model || OLLAMA_MODEL,
-        prompt: opts.prompt,
-        system: opts.system,
-        stream: false,
-        options: { temperature: 0.7, num_predict: 2048 },
-      }),
-      signal: opts.signal,
-    });
-
-    if (!res.ok) throw new Error("Ollama request failed");
-    const data = await res.json();
-    return { provider, text: data.response };
+    try {
+      const body = await streamOllama(opts);
+      return { provider: "ollama", body };
+    } catch (err) {
+      // If Ollama fails mid-request, silently fall through to OpenRouter when
+      // the caller didn't pin a provider. Invalidate the health cache so future
+      // requests skip Ollama until it recovers.
+      if (opts.provider === "ollama" || !OPENROUTER_API_KEY) throw err;
+      markOllamaDown();
+      const body = await streamOpenRouter({ ...opts, model: undefined });
+      return { provider: "openrouter", body };
+    }
   }
 
-  // OpenRouter — try models in order
+  const body = await streamOpenRouter(opts);
+  return { provider: "openrouter", body };
+}
+
+// ---------------------------------------------------------------------------
+// Non-streaming request
+// ---------------------------------------------------------------------------
+
+async function generateOllama(opts: {
+  prompt: string;
+  system: string;
+  signal?: AbortSignal;
+  model?: string;
+}): Promise<string> {
+  const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: opts.model || OLLAMA_MODEL,
+      prompt: opts.prompt,
+      system: opts.system,
+      stream: false,
+      options: { temperature: 0.7, num_predict: 2048 },
+    }),
+    signal: opts.signal,
+  });
+
+  if (!res.ok) throw new Error(`Ollama request failed (${res.status})`);
+  const data = await res.json();
+  return data.response;
+}
+
+async function generateOpenRouter(opts: {
+  prompt: string;
+  system: string;
+  signal?: AbortSignal;
+  model?: string;
+}): Promise<string> {
   const models = getModelsToTry(opts.model);
   let lastError = "";
 
@@ -227,11 +260,36 @@ export async function generate(opts: {
       }
 
       const data = await res.json();
-      return { provider, text: data.choices?.[0]?.message?.content || "" };
+      return data.choices?.[0]?.message?.content || "";
     } catch (err) {
       lastError = err instanceof Error ? err.message : "unknown error";
     }
   }
 
   throw new Error(`All OpenRouter models failed. Last error: ${lastError}`);
+}
+
+export async function generate(opts: {
+  prompt: string;
+  system: string;
+  signal?: AbortSignal;
+  provider?: LLMProvider;
+  model?: string;
+}): Promise<{ provider: LLMProvider; text: string }> {
+  const provider = await getActiveProvider(opts.provider);
+
+  if (provider === "ollama") {
+    try {
+      const text = await generateOllama(opts);
+      return { provider: "ollama", text };
+    } catch (err) {
+      if (opts.provider === "ollama" || !OPENROUTER_API_KEY) throw err;
+      markOllamaDown();
+      const text = await generateOpenRouter({ ...opts, model: undefined });
+      return { provider: "openrouter", text };
+    }
+  }
+
+  const text = await generateOpenRouter(opts);
+  return { provider: "openrouter", text };
 }
