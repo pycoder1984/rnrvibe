@@ -51,7 +51,15 @@ except ImportError as e:
 
 HOST = os.getenv("AUDIO_HOST", "127.0.0.1")
 PORT = int(os.getenv("AUDIO_PORT", "7870"))
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+# AUDIO_DEVICE can pin the device explicitly ("cpu" or "cuda"). Without it,
+# we auto-detect. Pinning to cpu is the right call on cards where SD and
+# audio compete for VRAM and partial allocations surface as CUDA errors.
+_DEVICE_OVERRIDE = os.getenv("AUDIO_DEVICE", "").strip().lower()
+if _DEVICE_OVERRIDE in ("cpu", "cuda"):
+    DEVICE = _DEVICE_OVERRIDE
+else:
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Transparently retry a failed GPU run on CPU. Slow (tens of seconds to
 # minutes per clip) but saves the request when SD or Ollama are contending
