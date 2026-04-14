@@ -75,6 +75,30 @@ export default function DashboardPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    } catch {
+      // Fallback for non-secure contexts
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+      } finally {
+        document.body.removeChild(ta);
+      }
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -293,8 +317,13 @@ export default function DashboardPage() {
         {/* Request log */}
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 overflow-hidden">
           <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between flex-wrap gap-3">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Request Log</h2>
-            <div className="flex gap-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Request Log</h2>
+              <span className="text-[10px] text-neutral-600 font-mono">
+                {filteredLogs.length} shown{filter !== "all" ? ` (${filter})` : ""}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
               {["all", "success", "error", "blocked", "timeout"].map((f) => (
                 <button
                   key={f}
@@ -308,6 +337,16 @@ export default function DashboardPage() {
                   {f}
                 </button>
               ))}
+              <button
+                onClick={() =>
+                  copyToClipboard(JSON.stringify(filteredLogs, null, 2), "copy-all")
+                }
+                disabled={filteredLogs.length === 0}
+                className="ml-2 px-3 py-1 rounded-lg text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                title="Copy all visible logs as JSON"
+              >
+                {copiedKey === "copy-all" ? "Copied!" : "Copy All"}
+              </button>
             </div>
           </div>
 
@@ -351,30 +390,70 @@ export default function DashboardPage() {
 
                   {expandedLog === log.id && (
                     <div className="px-6 pb-4 space-y-3 bg-neutral-950/50">
-                      <div className="grid sm:grid-cols-3 gap-3 text-xs">
-                        <div>
-                          <span className="text-neutral-500">IP:</span>{" "}
-                          <span className="text-neutral-300 font-mono">{log.ip}</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs flex-1 min-w-0">
+                          <div>
+                            <span className="text-neutral-500">ID:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.id}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">IP (hashed):</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.ip}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Time:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{new Date(log.timestamp).toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Response Time:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.responseTimeMs}ms</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Prompt chars:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.prompt.length}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Response chars:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.response.length}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Status:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.status}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Tool:</span>{" "}
+                            <span className="text-neutral-300 font-mono">{log.tool}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-neutral-500">Time:</span>{" "}
-                          <span className="text-neutral-300 font-mono">{new Date(log.timestamp).toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-neutral-500">Response Time:</span>{" "}
-                          <span className="text-neutral-300 font-mono">{log.responseTimeMs}ms</span>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => copyToClipboard(JSON.stringify(log, null, 2), `log-${log.id}`)}
+                            className="px-3 py-1 rounded-lg text-xs font-medium bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition"
+                          >
+                            {copiedKey === `log-${log.id}` ? "Copied!" : "Copy JSON"}
+                          </button>
+                          {log.error && (
+                            <button
+                              onClick={() => copyToClipboard(log.error || "", `err-${log.id}`)}
+                              className="px-3 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition"
+                            >
+                              {copiedKey === `err-${log.id}` ? "Copied!" : "Copy Error"}
+                            </button>
+                          )}
                         </div>
                       </div>
 
                       {log.error && (
                         <div>
                           <div className="text-xs text-red-400 font-semibold mb-1">Error</div>
-                          <div className="text-sm text-red-300 bg-red-500/5 rounded-lg p-3 font-mono">{log.error}</div>
+                          <div className="text-sm text-red-300 bg-red-500/5 rounded-lg p-3 font-mono whitespace-pre-wrap break-words">{log.error}</div>
                         </div>
                       )}
 
                       <div>
-                        <div className="text-xs text-neutral-500 font-semibold mb-1">Prompt</div>
+                        <div className="text-xs text-neutral-500 font-semibold mb-1">
+                          Prompt <span className="text-neutral-600">({log.prompt.length} chars)</span>
+                        </div>
                         <pre className="text-sm text-neutral-300 bg-neutral-900 rounded-lg p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto border border-neutral-800">
                           {log.prompt}
                         </pre>
@@ -382,12 +461,23 @@ export default function DashboardPage() {
 
                       {log.response && (
                         <div>
-                          <div className="text-xs text-neutral-500 font-semibold mb-1">Response (truncated)</div>
+                          <div className="text-xs text-neutral-500 font-semibold mb-1">
+                            Response (truncated to 500 chars at log time)
+                          </div>
                           <pre className="text-sm text-neutral-300 bg-neutral-900 rounded-lg p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto border border-neutral-800">
                             {log.response}
                           </pre>
                         </div>
                       )}
+
+                      <details className="group">
+                        <summary className="text-xs text-neutral-500 font-semibold cursor-pointer select-none hover:text-neutral-300 transition">
+                          Raw JSON
+                        </summary>
+                        <pre className="mt-2 text-xs text-neutral-400 bg-neutral-900 rounded-lg p-3 whitespace-pre-wrap break-words max-h-60 overflow-y-auto border border-neutral-800 font-mono">
+                          {JSON.stringify(log, null, 2)}
+                        </pre>
+                      </details>
                     </div>
                   )}
                 </div>
