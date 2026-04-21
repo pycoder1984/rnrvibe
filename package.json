@@ -9,7 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "gray-matter": "^4.0.3",
+    "jsdom": "^29.0.2",
     "next": "^16.2.2",
     "next-mdx-remote": "^6.0.0",
     "react": "19.2.3",
@@ -17,6 +19,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsdom": "^28.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

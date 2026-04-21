@@ -16,7 +16,17 @@ npm run lint                                # ESLint (flat config, eslint 9)
 
 No test framework is configured — there are no unit or integration tests.
 
-The startup bat file (`C:\Users\<you>\Desktop\start-rnrvibe.bat`) handles Ollama, the website (port 4000), and Cloudflare Tunnel.
+The startup stack is split across three Desktop bat files so VRAM/RAM-hungry services only run on demand:
+
+| Script | Starts | When |
+|---|---|---|
+| `start-rnrvibe-core.bat` | Ollama + website (port 4000) + Cloudflare Tunnel | Always-on |
+| `start-rnrvibe-sd.bat` | Stable Diffusion WebUI (port 7860, GPU) | On demand for image tools |
+| `start-rnrvibe-audio.bat` | Audio server (port 7870, CPU-pinned) | On demand for audio tool |
+| `stop-sd.bat` / `stop-audio.bat` | Kill the respective service | Free VRAM/RAM before switching |
+| `rnrvibe-status.bat` | Probe all ports + cloudflared process | Health check |
+
+The SD and audio start scripts detect a conflicting service and offer to auto-stop it before starting.
 
 ## Tech stack
 
@@ -54,6 +64,25 @@ Client-side fetch calls use `API_BASE` from `lib/api-config.ts`: empty string on
 
 Blog and guide content is in `content/blog/*.mdx` and `content/guides/*.mdx` with frontmatter parsed by gray-matter. Projects are registered in `data/projects.ts` and rendered from `app/projects/[name]/page.tsx`.
 
+### Deep Research pipeline (`lib/research/*`)
+
+The `/tools/deep-research` tool runs a single-pass `plan → search → read → synthesize` pipeline over free public sources (DuckDuckGo HTML, Wikipedia OpenSearch, arXiv). No API keys. Module breakdown:
+
+- `planner.ts` — LLM turns the question into ≤3 focused sub-queries (falls back to `[question]` on JSON parse failure).
+- `search.ts` — parallel fan-out across engines, 8s per-engine timeout, `Promise.allSettled` so one failure doesn't tank the round, capped at 15 hits post-dedup.
+- `fetcher.ts` — `fetch` + `@mozilla/readability` + `jsdom`, 6s timeout, 1 MB body cap, 4 KB text cap per source. **SSRF-guarded**: rejects non-http(s) and private IP ranges (10/8, 172.16/12, 192.168/16, 127/8, ::1, link-local).
+- `dedup.ts` — URL canonicalization (strip hash/utm_*/trailing slash, lowercase host) + Jaccard near-dup collapse on titles.
+- `sanitize.ts` — **critical, no upstream equivalent**: runs scraped content through injection-pattern strip + control/zero-width char cleanup, then wraps each source in a `<source id="n" url="..." title="...">` block. The synth system prompt tells the LLM to treat `<source>` content as data, not instructions.
+- `synthesize.ts` — `streamGenerate()` produces a 300–600 word cited answer; tokens forwarded as SSE `{ type: "token" }` events.
+
+API route `app/api/deep-research/route.ts` uses a dedicated rate-limit namespace (stricter: 10/hour/IP since each request fans out to ~10 external HTTP calls). SSE event types are defined in `lib/research/types.ts` (`phase`, `plan`, `search_result`, `source_fetched`, `token`, `done`, `error`). The `"deep-research"` entry in `ALLOWED_SYSTEM_PROMPTS` holds the synthesis prompt.
+
+See `DEEP_RESEARCH_PLAN.md` for the full write-up, including the v2 parking lot (iteration loop, SearXNG, markdown export).
+
+### Localhost-only dashboard routes
+
+`/api/services` (service probe) and `/api/service-logs` (bat-file log tailing from the Desktop) both enforce an `isLocal(req)` check that (a) rejects any request carrying `cf-connecting-ip` (i.e. coming through Cloudflare) and (b) requires the `Host` header to start with `localhost` / `127.0.0.1`. Returns 403 otherwise. Use this same pattern for any future route that exposes infrastructure topology — it must never leak through the tunnel.
+
 ## Conventions
 
 - Image tools (Image Generator, Image Studio, Logo Generator) check Stable Diffusion connectivity on mount and show an error banner with retry if down. Follow this pattern for any new image tools.
@@ -77,6 +106,7 @@ All optional — defaults work for standard local setup:
 | `AUDIO_URL` | `http://127.0.0.1:7870` | Local audio server (MusicGen + AudioGen) — see `scripts/README.md` |
 | `OPENROUTER_API_KEY` | (none) | Enables cloud LLM fallback |
 | `OPENROUTER_MODEL` | (none — tries fallback list) | Override to force a single OpenRouter model; when unset, `lib/llm-provider.ts` rotates through `FREE_MODELS` until one responds |
+| `RNRVIBE_LOG_DIR` | `~/Desktop` | Directory the dashboard tails bat-file logs from (`rnrvibe-core.log`, `rnrvibe-sd.log`, `rnrvibe-audio.log`) |
 
 ## Things to watch out for
 

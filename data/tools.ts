@@ -169,6 +169,12 @@ export const tools: Tool[] = [
     icon: "\u2728",
   },
   {
+    href: "/tools/deep-research",
+    title: "Deep Research",
+    description: "Ask a research question and get a cited, multi-source synthesis from the open web. No API keys needed.",
+    icon: "\u{1F52C}",
+  },
+  {
     href: "/tools/audio-generator",
     title: "AI Audio Generator",
     description: "Generate music and sound effects locally with MusicGen and AudioGen \u2014 nothing leaves your machine.",

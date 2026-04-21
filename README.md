@@ -1,6 +1,6 @@
 # RnR Vibe
 
-A vibecoding platform with 28 AI-powered tools, 22 interactive projects, 31 blog posts, and 28 guides — all running locally with Ollama, Stable Diffusion, and MusicGen/AudioGen. No cloud API bills.
+A vibecoding platform with 29 AI-powered tools, 22 interactive projects, 31 blog posts, and 28 guides — all running locally with Ollama, Stable Diffusion, and MusicGen/AudioGen. No cloud API bills.
 
 **Live at [rnrvibe.com](https://www.rnrvibe.com)**
 
@@ -32,19 +32,29 @@ npm run build
 npm run start -- -p 4000
 ```
 
-Or use the startup script: `C:\Users\<you>\Desktop\start-rnrvibe.bat` (starts Ollama, website on port 4000, and Cloudflare Tunnel).
+Or use the startup scripts on your Desktop. On this low-RAM / 6 GB VRAM box they are split so only the services you need are running:
+
+| Script | Starts | When to run |
+|---|---|---|
+| `start-rnrvibe-core.bat` | Ollama + Website (port 4000) + Cloudflare Tunnel | Always (always-on stack) |
+| `start-rnrvibe-sd.bat` | Stable Diffusion WebUI (port 7860, GPU) | On demand, for image tools |
+| `start-rnrvibe-audio.bat` | Audio server (port 7870, CPU-pinned) | On demand, for audio tool |
+| `stop-sd.bat` / `stop-audio.bat` | Kill the respective service | Free VRAM/RAM before switching |
+| `rnrvibe-status.bat` | Probe all four ports + cloudflared process | Quick health check |
+
+The SD and audio start scripts detect a conflicting service and offer to auto-stop it before starting (one-click switch, no in-progress work lost silently).
 
 ## Project Structure
 
 ```
 app/
-  api/              # 11 API routes (chat, image generation, health, etc.)
-  tools/            # 28 AI tool pages
+  api/              # 14 API routes (chat, image generation, deep-research, services, etc.)
+  tools/            # 29 AI tool pages (incl. deep-research)
   projects/         # 22 interactive project demos
   blog/             # Blog listing + [slug] pages
   guides/           # Guide listing + [slug] pages
   compare/          # Comparison pages (vs Cursor, Copilot, etc.)
-  dashboard/        # Admin dashboard
+  dashboard/        # Admin dashboard (localhost-only)
 components/         # Shared UI components
 content/
   blog/             # 31 MDX blog posts
@@ -59,6 +69,7 @@ lib/
   mdx.ts            # MDX file loading utilities
   rate-limit.ts     # Shared rate limiting
   request-log.ts    # Request logging
+  research/         # Deep Research pipeline (planner, search, fetcher, dedup, sanitize, synthesize)
 public/             # Static assets
 ```
 
@@ -91,9 +102,20 @@ Runs on `http://127.0.0.1:7870` by default. Used by the AI Audio Generator tool.
 |---|---|---|
 | `AUDIO_URL` | `http://127.0.0.1:7870` | Local audio server base URL |
 
+### Deep Research
+
+The `/tools/deep-research` tool runs a single-pass research pipeline (plan → search → read → synthesize with citations) over free public sources. No API keys required.
+
+- Search backends: DuckDuckGo (HTML), Wikipedia OpenSearch, arXiv
+- Content extraction: `@mozilla/readability` + `jsdom`, SSRF-guarded fetcher, 1 MB body cap, 4 KB text cap per source
+- Injection hardening: every scraped page is run through `sanitizeWebContent` and wrapped in a `<source>` block before the synthesizer sees it
+- Streams phases (`planning → searching → reading → synthesizing`) + tokens to the UI via SSE
+- Rate limit: 10 requests / hour / IP (each request fans out to ~10 external HTTP calls)
+- See [`DEEP_RESEARCH_PLAN.md`](DEEP_RESEARCH_PLAN.md) for the architecture write-up
+
 ## Key Features
 
-- **28 AI Tools** — chat, code generation, image generation, logo design, music + sound-effect generation, code review, and more
+- **29 AI Tools** — chat, code generation, image generation, logo design, music + sound-effect generation, code review, Deep Research, and more
 - **22 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Drawing canvas, etc.)
 - **31 Blog Posts + 28 Guides** — MDX content about vibecoding, AI tools, and development
 - **Security Hardened** — input sanitization, prompt injection detection, output filtering, rate limiting

@@ -33,7 +33,19 @@ import gc
 import io
 import os
 import sys
+import warnings
 from typing import Dict, Optional
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"You are using `torch\.load` with `weights_only=False`.*",
+    category=FutureWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r"`torch\.nn\.utils\.weight_norm` is deprecated.*",
+    category=FutureWarning,
+)
 
 import torch
 import torchaudio
@@ -259,8 +271,39 @@ def sfx(req: SfxRequest):
     return Response(content=data, media_type="audio/wav")
 
 
+def _silence_asyncio_connection_reset() -> None:
+    """Swallow `ConnectionResetError [WinError 10054]` spam on Windows.
+
+    When Node's fetch closes a keep-alive socket with RST instead of FIN,
+    asyncio's _ProactorBasePipeTransport._call_connection_lost raises, and
+    the default exception handler prints a full traceback. The response
+    was already delivered, so these are cosmetic. Suppress only that exact
+    shape; delegate everything else to the default handler.
+    """
+    import asyncio
+
+    loop = asyncio.get_event_loop()
+    default_handler = loop.get_exception_handler()
+
+    def handler(loop, context):
+        exc = context.get("exception")
+        if isinstance(exc, ConnectionResetError):
+            return
+        if default_handler is not None:
+            default_handler(loop, context)
+        else:
+            loop.default_exception_handler(context)
+
+    loop.set_exception_handler(handler)
+
+
 if __name__ == "__main__":
+    import asyncio
     import uvicorn
+
+    if sys.platform == "win32":
+        asyncio.set_event_loop(asyncio.ProactorEventLoop())
+        _silence_asyncio_connection_reset()
 
     sys.stderr.write(
         f"[audio] Starting on http://{HOST}:{PORT} (device={DEVICE}, cpu_fallback={CPU_FALLBACK})\n"

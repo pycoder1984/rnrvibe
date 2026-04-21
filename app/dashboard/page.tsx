@@ -46,6 +46,39 @@ interface SystemMetrics {
   timestamp: number;
 }
 
+type ServiceId = "ollama" | "website" | "sd" | "audio" | "tunnel";
+type ServiceStatusValue = "up" | "down" | "error";
+
+interface ServiceStatus {
+  id: ServiceId;
+  label: string;
+  status: ServiceStatusValue;
+  url?: string;
+  detail?: string;
+  latencyMs?: number;
+}
+
+interface ServicesResponse {
+  services: ServiceStatus[];
+  timestamp: number;
+}
+
+type ServiceLogKey = "core" | "sd" | "audio";
+
+interface ServiceLogEntry {
+  exists: boolean;
+  path: string;
+  lines?: string[];
+  size?: number;
+  mtime?: string;
+  message?: string;
+}
+
+interface ServiceLogsResponse {
+  dir: string;
+  logs: Record<ServiceLogKey, ServiceLogEntry>;
+}
+
 function formatBytes(bytes: number): string {
   const gb = bytes / 1024 ** 3;
   if (gb >= 1) return `${gb.toFixed(1)} GB`;
@@ -70,6 +103,9 @@ const statusColors: Record<string, string> = {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const [services, setServices] = useState<ServiceStatus[] | null>(null);
+  const [serviceLogs, setServiceLogs] = useState<ServiceLogsResponse | null>(null);
+  const [expandedServiceLog, setExpandedServiceLog] = useState<ServiceLogKey | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -130,17 +166,45 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchServices = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/services`);
+      if (!res.ok) return;
+      const json: ServicesResponse = await res.json();
+      setServices(json.services);
+    } catch {
+      /* ignore — best-effort */
+    }
+  }, []);
+
+  const fetchServiceLogs = useCallback(async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/api/service-logs?lines=80`);
+      if (!res.ok) return;
+      const json: ServiceLogsResponse = await res.json();
+      setServiceLogs(json);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
     fetchMetrics();
+    fetchServices();
+    fetchServiceLogs();
     if (!autoRefresh) return;
     const interval = setInterval(fetchData, 3000);
     const metricsInterval = setInterval(fetchMetrics, 2000);
+    const servicesInterval = setInterval(fetchServices, 5000);
+    const logsInterval = setInterval(fetchServiceLogs, 5000);
     return () => {
       clearInterval(interval);
       clearInterval(metricsInterval);
+      clearInterval(servicesInterval);
+      clearInterval(logsInterval);
     };
-  }, [fetchData, fetchMetrics, autoRefresh]);
+  }, [fetchData, fetchMetrics, fetchServices, fetchServiceLogs, autoRefresh]);
 
   const clearLogs = async () => {
     if (!confirm("Clear all logs?")) return;
@@ -214,6 +278,48 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        {/* Services */}
+        {services && (
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider">Services</h2>
+              <span className="text-[10px] text-neutral-600 font-mono">
+                Start/stop with bat files on Desktop · logs below
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {services.map((s) => (
+                <ServicePill key={s.id} svc={s} />
+              ))}
+            </div>
+
+            {serviceLogs && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {(["core", "sd", "audio"] as ServiceLogKey[]).map((key) => {
+                  const entry = serviceLogs.logs[key];
+                  const active = expandedServiceLog === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setExpandedServiceLog(active ? null : key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                        active ? "bg-purple-500/20 text-purple-300" : "bg-neutral-800 text-neutral-400 hover:text-white"
+                      }`}
+                      title={entry?.path}
+                    >
+                      {key.toUpperCase()} log {entry?.exists ? `(${(entry.size ?? 0).toLocaleString()} B)` : "(missing)"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {expandedServiceLog && serviceLogs && (
+              <ServiceLogPanel entry={serviceLogs.logs[expandedServiceLog]} name={expandedServiceLog} />
+            )}
+          </div>
+        )}
+
         {/* System metrics */}
         {metrics && (
           <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6">
@@ -486,6 +592,60 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function ServicePill({ svc }: { svc: ServiceStatus }) {
+  const isUp = svc.status === "up";
+  const dot = isUp ? "bg-green-400" : svc.status === "error" ? "bg-yellow-400" : "bg-red-400";
+  const label = isUp ? "UP" : svc.status === "error" ? "ERR" : "DOWN";
+  const labelColor = isUp ? "text-green-400" : svc.status === "error" ? "text-yellow-400" : "text-red-400";
+  return (
+    <div className="rounded-lg border border-neutral-800 bg-neutral-950/50 p-3">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-neutral-300 font-medium truncate">{svc.label}</span>
+        <span className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${dot} ${isUp ? "animate-pulse" : ""}`} />
+          <span className={`text-[10px] font-mono font-semibold ${labelColor}`}>{label}</span>
+        </span>
+      </div>
+      <div className="text-[10px] text-neutral-500 font-mono truncate" title={svc.url}>
+        {svc.url || "—"}
+      </div>
+      {svc.latencyMs !== undefined && (
+        <div className="text-[10px] text-neutral-600 font-mono mt-0.5">
+          {svc.latencyMs}ms{svc.detail && !isUp ? ` · ${svc.detail}` : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ServiceLogPanel({ entry, name }: { entry: ServiceLogEntry; name: ServiceLogKey }) {
+  if (!entry.exists) {
+    return (
+      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950 p-4 text-xs text-neutral-500">
+        <div className="mb-1 font-mono text-neutral-400">{entry.path}</div>
+        {entry.message || "Log file not found yet. Start the service to create it."}
+      </div>
+    );
+  }
+  const lines = entry.lines || [];
+  return (
+    <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800 text-xs">
+        <span className="font-mono text-neutral-500 truncate">{entry.path}</span>
+        <span className="text-neutral-600 font-mono shrink-0 ml-3">
+          {lines.length} lines · {entry.mtime ? new Date(entry.mtime).toLocaleTimeString() : "—"}
+        </span>
+      </div>
+      <pre
+        key={name}
+        className="p-4 text-xs text-neutral-300 font-mono whitespace-pre-wrap break-words max-h-80 overflow-y-auto"
+      >
+        {lines.join("\n") || "(empty)"}
+      </pre>
     </div>
   );
 }

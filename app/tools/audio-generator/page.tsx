@@ -160,9 +160,15 @@ export default function AudioGeneratorPage() {
         return;
       }
 
-      // Chromium struggles to play large data: URLs in <audio>. Convert to
-      // a blob: URL so playback works regardless of clip size.
-      const blob = await (await fetch(finalData.audio)).blob();
+      // Chromium struggles to play large data: URLs in <audio>, and our CSP
+      // forbids `connect-src data:`, so we can't fetch() the data URL either.
+      // Decode the base64 payload directly into a Blob.
+      const commaIdx = finalData.audio.indexOf(",");
+      const base64 = commaIdx >= 0 ? finalData.audio.slice(commaIdx + 1) : finalData.audio;
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "audio/wav" });
       const blobUrl = URL.createObjectURL(blob);
       const clip: GeneratedClip = {
         id: Date.now(),
@@ -174,8 +180,12 @@ export default function AudioGeneratorPage() {
         createdAt: Date.now(),
       };
       setClips((prev) => [clip, ...prev]);
-    } catch {
-      setError("Lost connection during generation. Is the server still running?");
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error("[audio-generator] generation failed:", err);
+      setError(
+        `Lost connection during generation (${detail}). The clip may have still completed — check the dashboard.`
+      );
     } finally {
       setGenerating(false);
     }
