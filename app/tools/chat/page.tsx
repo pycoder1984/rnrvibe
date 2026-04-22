@@ -20,9 +20,19 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastAssistantRef = useRef<HTMLDivElement>(null);
+  const prevCount = useRef(messages.length);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > prevCount.current) {
+      const last = messages[messages.length - 1];
+      if (last?.role === "user") {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        lastAssistantRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      prevCount.current = messages.length;
+    }
   }, [messages]);
 
   const send = async () => {
@@ -105,6 +115,7 @@ export default function ChatPage() {
           {messages.map((msg, i) => (
             <div
               key={i}
+              ref={i === messages.length - 1 && msg.role === "assistant" ? lastAssistantRef : undefined}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div

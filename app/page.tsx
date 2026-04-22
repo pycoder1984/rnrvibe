@@ -231,10 +231,10 @@ export default function Home() {
       <section className="relative z-10 px-6 pt-8 pb-16 sm:pt-12 sm:pb-20 max-w-5xl mx-auto">
         <StatsCounter
           stats={[
-            { label: "AI Tools", value: 28 },
+            { label: "AI Tools", value: 29 },
             { label: "Projects", value: 22 },
-            { label: "Blog Posts", value: 31 },
-            { label: "Guides", value: 28 },
+            { label: "Blog Posts", value: 35 },
+            { label: "Guides", value: 31 },
           ]}
         />
       </section>

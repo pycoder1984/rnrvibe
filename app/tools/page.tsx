@@ -14,9 +14,28 @@ export const metadata = {
   },
 };
 
+const toolsItemListJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "Free AI Vibecoding Tools",
+  description: "Free AI-powered tools for developers — no sign-up, no API keys required.",
+  numberOfItems: tools.length,
+  itemListElement: tools.map((tool, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    url: `https://www.rnrvibe.com${tool.href}`,
+    name: tool.title,
+    description: tool.description,
+  })),
+};
+
 export default function ToolsPage() {
   return (
     <div className="relative min-h-screen bg-neutral-950 text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(toolsItemListJsonLd) }}
+      />
       {/* Full-page background image */}
       <Image
         src="/tools-bg.png"

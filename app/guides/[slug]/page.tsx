@@ -49,32 +49,57 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     notFound();
   }
 
-  const jsonLd = {
+  const pageUrl = `https://www.rnrvibe.com/guides/${slug}`;
+  const ogImage = `https://www.rnrvibe.com/api/og?title=${encodeURIComponent(post.meta.title)}&type=guide`;
+
+  const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "TechArticle",
     headline: post.meta.title,
     description: post.meta.description,
     datePublished: post.meta.date,
     dateModified: post.meta.date,
-    url: `https://www.rnrvibe.com/guides/${slug}`,
+    url: pageUrl,
+    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+    inLanguage: "en-US",
+    keywords: Array.isArray(post.meta.tags) ? post.meta.tags.join(", ") : undefined,
+    image: ogImage,
     author: {
-      "@type": "Organization",
-      name: "RnR Vibe",
-      url: "https://www.rnrvibe.com",
+      "@type": "Person",
+      name: post.meta.author || "RnR Vibe Team",
+      url: "https://www.rnrvibe.com/about",
     },
     publisher: {
       "@type": "Organization",
       name: "RnR Vibe",
       url: "https://www.rnrvibe.com",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://www.rnrvibe.com/favicon.ico",
+      },
     },
     ...(post.meta.difficulty && { proficiencyLevel: post.meta.difficulty }),
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.rnrvibe.com" },
+      { "@type": "ListItem", position: 2, name: "Guides", item: "https://www.rnrvibe.com/guides" },
+      { "@type": "ListItem", position: 3, name: post.meta.title, item: pageUrl },
+    ],
   };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <ReadingProgress />
       <BlogNav />

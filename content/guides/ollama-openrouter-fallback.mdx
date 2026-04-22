@@ -1,0 +1,212 @@
+---
+title: "Adding OpenRouter Fallback to Your Ollama App"
+date: "2026-04-16"
+description: "When your local machine is off, your app shouldn't die. Build a health-checked fallback from Ollama to OpenRouter's free tier with zero disruption to callers."
+tags: ["intermediate", "ollama", "openrouter", "llm", "reliability"]
+readTime: "8 min read"
+difficulty: "Intermediate"
+---
+
+# Adding OpenRouter Fallback to Your Ollama App
+
+Running your LLM locally is the right default — it's free, private, and fast over loopback. The one thing it isn't is always-on. The moment your dev box goes to sleep or you deploy to a server that isn't the one running Ollama, every call 500s.
+
+This guide builds the pattern we use at RnR Vibe: a single `generate()` function that talks to Ollama by default, watches its health in the background, and flips seamlessly to OpenRouter's free models when local inference is unreachable.
+
+## The shape of the abstraction
+
+The rule is: callers don't know or care which provider answered. They call one function, get tokens back, and carry on.
+
+```ts
+// lib/llm-provider.ts
+export async function generate(opts: {
+  prompt: string;
+  system?: string;
+  model?: string;
+}): Promise<string> { /* … */ }
+
+export async function* streamGenerate(opts: {
+  prompt: string;
+  system?: string;
+  model?: string;
+}): AsyncGenerator<string> { /* … */ }
+```
+
+Two exports — one non-streaming, one streaming. Both route internally. No call site ever imports `fetch` or knows an OpenRouter URL.
+
+## The health check
+
+Don't check Ollama's health on every request — that doubles your request count. Check it on an interval, cache the result, and serve the cached answer.
+
+```ts
+const HEALTH_INTERVAL_MS = 30_000;
+let ollamaHealthy = true;
+let lastCheck = 0;
+
+async function checkOllama(): Promise<boolean> {
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/tags`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function isOllamaHealthy(): Promise<boolean> {
+  const now = Date.now();
+  if (now - lastCheck > HEALTH_INTERVAL_MS) {
+    ollamaHealthy = await checkOllama();
+    lastCheck = now;
+  }
+  return ollamaHealthy;
+}
+```
+
+A 2-second timeout on the health probe is important. If Ollama is up but wedged, you want to know quickly and route around it. Don't let a slow probe block a real request.
+
+## The routing logic
+
+```ts
+export async function generate(opts: GenerateOpts): Promise<string> {
+  if (await isOllamaHealthy()) {
+    try {
+      return await callOllama(opts);
+    } catch {
+      // Ollama was healthy at last check but this call failed.
+      // Invalidate the cache and fall through to fallback.
+      ollamaHealthy = false;
+      lastCheck = Date.now();
+    }
+  }
+
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error("Local LLM unreachable and no fallback configured.");
+  }
+
+  return callOpenRouter(opts);
+}
+```
+
+Two points worth noting:
+
+- If a "healthy" Ollama call fails mid-request, we mark it unhealthy and fall through — we don't retry on Ollama. The health flag is a hint, not a contract.
+- If `OPENROUTER_API_KEY` isn't set, we throw a specific error rather than silently degrading. A misconfigured environment should fail loudly.
+
+## Streaming: two wire formats, one interface
+
+This is where most implementations get ugly. Ollama streams NDJSON (one JSON object per line). OpenRouter streams SSE (`data: {json}\n\n`). Your caller shouldn't know either format.
+
+```ts
+export async function* streamGenerate(opts: GenerateOpts): AsyncGenerator<string> {
+  if (await isOllamaHealthy()) {
+    try {
+      yield* streamOllama(opts);
+      return;
+    } catch {
+      ollamaHealthy = false;
+      lastCheck = Date.now();
+    }
+  }
+  yield* streamOpenRouter(opts);
+}
+
+async function* streamOllama(opts: GenerateOpts): AsyncGenerator<string> {
+  const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+    method: "POST",
+    body: JSON.stringify({ model: opts.model ?? DEFAULT, prompt: opts.prompt, stream: true }),
+  });
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const json = JSON.parse(line);
+      if (json.response) yield json.response;
+    }
+  }
+}
+
+async function* streamOpenRouter(opts: GenerateOpts): AsyncGenerator<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: pickFreeModel(),
+      messages: [{ role: "user", content: opts.prompt }],
+      stream: true,
+    }),
+  });
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const payload = line.slice(6);
+      if (payload === "[DONE]") return;
+      const json = JSON.parse(payload);
+      const token = json.choices?.[0]?.delta?.content;
+      if (token) yield token;
+    }
+  }
+}
+```
+
+Both functions yield plain strings. The caller gets `for await (const token of streamGenerate(…))` and forwards tokens to the client as SSE, never knowing which provider produced them.
+
+## Picking an OpenRouter free model
+
+Free models on OpenRouter rotate. Hard-coding one will break you on a Tuesday when that model gets deprecated. Keep a fallback list and try each one until you get a 200:
+
+```ts
+const FREE_MODELS = [
+  "google/gemma-4-26b-a4b-it:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3n-e4b-it:free",
+];
+
+function pickFreeModel(): string {
+  return process.env.OPENROUTER_MODEL ?? FREE_MODELS[0];
+}
+```
+
+For more resilience, you can loop through `FREE_MODELS` inside the fallback function and retry the next one if a model returns an error. Don't loop on the health check — loop at request time so you pay the cost only when you need to.
+
+## What to skip
+
+A few things you *don't* need that the internet will tell you to build:
+
+- **Circuit breakers**. The health check already gives you an opt-out. A separate circuit breaker on top of it is overkill for a two-provider system.
+- **Retries**. If Ollama fails, the fallback is the retry. Don't retry Ollama inside the Ollama path.
+- **Load balancing across OpenRouter models**. Pick one, try the next on failure. Round-robin makes cold-cache misses worse.
+
+## Testing the fallback
+
+The fallback only matters if it actually fires. Test it manually with two steps:
+
+1. Stop your local Ollama (`Get-Process ollama | Stop-Process` on Windows, `pkill ollama` elsewhere).
+2. Hit your chat endpoint. Watch the console — you should see one failed health check, then a successful response that came back slower than usual.
+
+Restart Ollama and wait 30 seconds. The next request should go local again. If it doesn't, your health-check cache isn't invalidating correctly.
+
+## What this gives you
+
+A production system that works the same whether your laptop is on or off. Your users never see an error page because the local machine went to sleep. Your logs tell you which provider served each request. Your bill stays at $0 because everything local is free and the free-tier fallback is free too.
+
+The total code is about 150 lines once you strip the comments. It's one of the highest-leverage abstractions you can add to an LLM app.

@@ -1,0 +1,77 @@
+---
+title: "Reading AI Code Without Falling Asleep"
+date: "2026-04-10"
+description: "The biggest skill in vibecoding isn't writing prompts — it's reading the diff the model hands back and catching the things it quietly got wrong."
+tags: ["code-review", "vibecoding", "workflow"]
+readTime: "5 min read"
+---
+
+# Reading AI Code Without Falling Asleep
+
+Most AI-generated code *looks* fine. That's the problem.
+
+When human-written code is wrong, it usually looks wrong in some ambient way — a sloppy variable name, a commented-out block, an obvious shortcut. You can skim it and feel the discomfort. AI-generated code almost never does this. Every name is plausible, every function has a docstring, every block is uniformly indented. The vibes are great right up until you find out it silently swapped two arguments.
+
+Reading AI code is a different skill from reading human code. Here's what actually works for me.
+
+## Read the imports first
+
+The imports are the highest signal-per-line in the whole diff. They tell you what libraries the model reached for, whether it invented a package, whether it pulled in something you already rejected for this repo, and whether it's using the internal helpers you'd expect.
+
+If the imports don't look like imports from your codebase, nothing else will either. Stop there, push back, try again.
+
+## Look for the thing that *isn't* in the diff
+
+The model will cheerfully write a function that calls a helper that doesn't exist. It will instantiate a class with arguments the constructor doesn't take. It will import from a module you deleted last week.
+
+Grep for every identifier the diff introduces that isn't defined in the diff itself. If the symbol doesn't resolve, the diff is broken no matter how good it reads.
+
+## The off-by-one is almost always in a boundary
+
+Loops, array slices, date ranges, pagination. These are where the model makes silent mistakes most often, and they're also the mistakes your tests are least likely to catch because the tests were probably written by the same model.
+
+When I hit a slice or a range calculation, I stop skimming and actually evaluate it on paper with a concrete input. Three lines of manual walkthrough catches bugs that hours of later debugging wouldn't.
+
+## Check what happens when the input is empty
+
+Empty array. Empty string. Null. Undefined. Zero. Negative.
+
+Generated code tends to handle the happy path confidently and the empty path either with a crash or, worse, silent success that produces wrong output. If the function takes input, trace what it does when the input is nothing.
+
+## Check what happens when the input is huge
+
+Does the function load the whole thing into memory? Does it have O(n²) somewhere that's fine for n=10 and catastrophic at n=10,000? Does it make N network calls when one batched call would do?
+
+The model optimizes for obvious correctness at typical scale. It rarely thinks about upper bounds unless you mention them.
+
+## Verify the error handling is the kind you want
+
+Generated `try/catch` blocks love to swallow errors. They catch, they log, they move on. Sometimes that's right. Often it means a failure that should halt the operation instead gets absorbed and the caller has no way to know.
+
+For every `catch` in the diff, ask: should this halt, retry, or log-and-continue? The model will pick one. It won't always pick yours.
+
+## Read the tests like the production code
+
+If the model wrote tests alongside the code, the tests are suspect. They were generated against the *same incorrect understanding* that produced any bug in the code. A test that passes tells you nothing about whether the feature works — it tells you the test matches the code.
+
+Read each test's assertion and ask: if the implementation were silently wrong, would this assertion still pass? If the answer is yes, the test isn't doing work.
+
+## The two-pass method
+
+First pass: skim end to end, don't stop, don't edit. You're building a mental model of what the diff claims to do.
+
+Second pass: go back to each function and ask "do I believe this?" Don't trust your first-pass skim. The skim was to load context; the second pass is where the reading happens.
+
+This takes longer than one pass. It's the single biggest quality lever I have.
+
+## When to stop reading and rewrite
+
+If the second pass surfaces more than two things you're uncomfortable with, the problem isn't those two things — it's that the frame is wrong. Throwing the diff out and re-prompting from a better starting point is faster than patching it.
+
+I used to try to save generated code I didn't love. I don't anymore. The undo is cheap, the patch-up is expensive, and the patched version tends to age worse than a clean rewrite.
+
+## The meta-skill
+
+Reading AI code well is really just reading code well, with a few specific failure modes to watch for. The developers I know who are getting the most out of AI are the ones who already knew how to review a pull request. The ones who struggle are the ones who never built the habit.
+
+If you want to get faster with AI, spend an afternoon reading someone else's well-reviewed PRs end to end. The pattern-matching you build there is the exact pattern-matching you'll use every time a model hands you a diff.

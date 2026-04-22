@@ -1,0 +1,200 @@
+---
+title: "Ollama Models in 2026 and What Hardware They Actually Need"
+date: "2026-04-21"
+description: "A practical snapshot of the Ollama models worth running locally this year, with honest minimum system requirements — CPU, RAM, GPU VRAM, disk — from someone who has actually hit the out-of-memory errors."
+tags: ["ollama", "local-llm", "hardware", "reference"]
+readTime: "10 min read"
+---
+
+# Ollama Models in 2026 and What Hardware They Actually Need
+
+Every Ollama guide opens the same way: "just pull a model and run it." Fine advice until you pull an 8B model onto a laptop with 16 GB of RAM and watch it paralyze the machine. This post is the guide I wish I had the first time — actual models you'd want in 2026, and the hardware they actually need to run at useful speed.
+
+I've run all of these on the box hosting RnR Vibe (modest Windows desktop, 6 GB VRAM, 16 GB RAM) and on a beefier workstation. The numbers below are what I saw, not what the model card claims.
+
+## How to read the numbers
+
+Three things move together on local LLM hardware: model size (how much fits in memory), quantization (how compressed the weights are), and context window (how much chat history the model holds at once).
+
+- **RAM/VRAM** numbers assume the default quantization Ollama pulls (`Q4_K_M` for most models). Running full-precision roughly doubles the requirement.
+- **VRAM listed** is what you need to put the *whole* model on GPU. Less VRAM still works — Ollama offloads layers to CPU automatically, but tokens-per-second drops fast.
+- **Minimum RAM** assumes no GPU. With a GPU, system RAM pressure drops significantly.
+- **Context window** defaults in Ollama are modest. Cranking context multiplies memory cost.
+
+All numbers below are for inference, not training or fine-tuning.
+
+## Small models: the ones you should actually try first
+
+These run on almost anything and are surprisingly capable for chat and code assistance.
+
+### Gemma 3n (e4b)
+
+Google's efficient 4B-parameter model, explicitly designed for low-resource deployment. The default model on RnR Vibe.
+
+- **Disk:** ~2.5 GB
+- **RAM (CPU-only):** 6 GB minimum, 8 GB recommended
+- **VRAM (GPU):** 4 GB fits comfortably
+- **CPU:** any x86_64 or ARM64 with AVX2; tokens/sec on modern laptop CPU is ~15–20
+- **Context:** 8K default, fine to push to 32K if you have headroom
+
+This is my daily driver. It won't write a novel, but for chat, code explanation, and tool-use it's genuinely useful and starts in under a second.
+
+### Llama 3.2 3B
+
+Meta's small model, strong at instruction-following for its size.
+
+- **Disk:** ~2 GB
+- **RAM:** 6 GB minimum, 8 GB comfortable
+- **VRAM:** 3 GB
+- **CPU:** AVX2+ required
+- **Context:** 128K native, but RAM cost scales — practical ceiling on a 16 GB box is ~32K
+
+### Phi-3.5 mini (3.8B)
+
+Microsoft's "small model, big personality" entry. Punches above its weight on reasoning.
+
+- **Disk:** ~2.3 GB
+- **RAM:** 6 GB
+- **VRAM:** 3 GB
+- **CPU:** AVX2+
+- **Context:** 128K native
+
+Phi-3.5 is the one I reach for when I need something small to do a genuinely hard classification or extraction task. It's slower than Gemma 3n per token but gets more right per attempt.
+
+### Qwen 2.5 Coder 1.5B
+
+Alibaba's code-focused tiny model. Surprisingly good for autocomplete-style tasks.
+
+- **Disk:** ~1 GB
+- **RAM:** 4 GB
+- **VRAM:** 2 GB
+- **CPU:** AVX2+
+
+If you want a "type a comment, get a function back" loop running on a Raspberry Pi 5 or an old laptop, this is the model.
+
+## Mid-range: the sweet spot for a real workstation
+
+These need a real GPU (8+ GB VRAM) or a serious amount of system RAM. They're the first tier where the output starts to compete with cloud models on quality.
+
+### Gemma 3 12B
+
+The bigger Gemma 3. Noticeably better at long-form writing, code explanation, and multi-turn reasoning than the 4B.
+
+- **Disk:** ~7 GB
+- **RAM (CPU-only):** 16 GB minimum, and expect ~3–5 tokens/sec
+- **VRAM (GPU):** 10 GB for full GPU offload, 8 GB works with slight CPU spillover
+- **CPU:** anything modern (doesn't bottleneck if GPU offloaded)
+- **Context:** 128K native, realistic ceiling ~16K without extra VRAM
+
+On a 12 GB GPU this is the highest-quality model that still feels snappy. Below 8 GB VRAM it's painful.
+
+### Qwen 2.5 Coder 7B
+
+Alibaba's coder model at the 7B tier. My current pick for "actually useful local code generation."
+
+- **Disk:** ~4.5 GB
+- **RAM:** 12 GB (CPU-only, expect ~5 tok/s)
+- **VRAM:** 6 GB
+- **CPU:** AVX2+
+- **Context:** 32K
+
+If you only ever run one model for coding and have a 6 GB GPU, this is the one. It writes cleaner code than general-purpose 7B models and handles multi-file context better.
+
+### Llama 3.1 8B
+
+The workhorse. Widely compatible with tooling, well-supported, good general-purpose chat.
+
+- **Disk:** ~4.7 GB
+- **RAM:** 12 GB (CPU-only, ~4 tok/s)
+- **VRAM:** 6 GB
+- **CPU:** AVX2+
+- **Context:** 128K native, realistic ~16K on 16 GB RAM
+
+Less specialized than Qwen Coder, but if you want one model that does chat, code, writing, and light reasoning well, it's the safest pick.
+
+### DeepSeek-R1 Distill 7B
+
+A distilled version of DeepSeek's reasoning model. Thinks visibly — you see it work through problems in `<think>` tags before answering.
+
+- **Disk:** ~4.5 GB
+- **RAM:** 12 GB
+- **VRAM:** 6 GB
+- **CPU:** AVX2+
+- **Context:** 32K (but reasoning eats a lot of it)
+
+The reasoning trace is genuinely useful for hard problems. The trade-off is that it takes longer per answer and burns more context. Don't use it for small lookups.
+
+## Heavy models: for serious local inference rigs
+
+These need workstation hardware. If you're running one of these, you already know your hardware.
+
+### Gemma 3 27B
+
+The largest Gemma. Approaches cloud-model quality on a lot of tasks.
+
+- **Disk:** ~16 GB
+- **RAM (CPU-only):** 32 GB, and plan on ~1 tok/s
+- **VRAM:** 20 GB for full GPU offload; partial offload works on 16 GB with a big performance hit
+- **CPU:** doesn't much matter if GPU offloaded
+- **Context:** 128K, but practical limit is whatever fits alongside the model in your VRAM
+
+On a 24 GB GPU this is delightful. Below that it's a science project.
+
+### Qwen 2.5 Coder 32B
+
+The big coder model. State of the art for open-weight code generation as of early 2026.
+
+- **Disk:** ~20 GB
+- **RAM:** 48 GB (CPU-only, barely functional — don't)
+- **VRAM:** 24 GB
+- **CPU:** anything modern
+- **Context:** 32K
+
+Needs a serious GPU. If you have one, this is the model that makes "I don't need cloud AI" feel true.
+
+### Llama 3.3 70B
+
+Meta's 70B model, instruction-tuned, top tier for general tasks.
+
+- **Disk:** ~40 GB (Q4_K_M)
+- **RAM (CPU-only):** 64 GB, and ~0.5 tok/s — a slideshow
+- **VRAM:** 48 GB (practical: two 24 GB cards, or one 48 GB card)
+- **CPU:** doesn't matter if GPU offloaded
+- **Context:** 128K
+
+You're buying dedicated hardware for this model. Below a dual-GPU setup it's impractical.
+
+## How to figure out what YOUR box can handle
+
+Three quick diagnostics before you pull anything:
+
+1. **Check your VRAM.**
+   - Windows: `nvidia-smi` or Task Manager → GPU.
+   - Mac: Apple Silicon shares unified memory — assume ~70% of total RAM is usable.
+   - Linux: `nvidia-smi` or `rocm-smi`.
+
+2. **Check your free system RAM.** Close your browser first. A fresh Chrome window eats 2 GB you may need.
+
+3. **Use Ollama's partial-offload behavior as a test.** Run `ollama run <model>` and watch the logs. It tells you how many layers went to GPU vs. CPU. If fewer than half the layers made it to GPU, the model is too big for your hardware and it'll run slowly.
+
+## Rules of thumb
+
+- If you have **4 GB or less VRAM**: stick to 3B–4B models. Gemma 3n is the best default.
+- If you have **6–8 GB VRAM**: 7B models run well. Qwen Coder 7B or Llama 3.1 8B.
+- If you have **12 GB VRAM**: Gemma 3 12B or DeepSeek-R1 Distill 7B comfortably.
+- If you have **24 GB VRAM**: the 32B tier opens up. Qwen Coder 32B is transformative for coding.
+- If you have **48+ GB VRAM**: Llama 3.3 70B is in reach.
+- **CPU-only on 16 GB RAM**: Gemma 3n or Phi-3.5. Anything bigger will be too slow to use.
+- **CPU-only on 32 GB RAM**: 7B models are usable-but-slow. Expect 3–5 tokens/second.
+
+## What's not on this list and why
+
+- **Mistral Large / Mixtral 8x22B**: great models, but the mixture-of-experts architecture makes them hard to reason about for local hardware. If you know you want them, you know what you need.
+- **OpenAI OSS releases**: as of publishing, nothing from OpenAI is on Ollama. If that changes, expect the 20B–30B tier to land well for 16 GB GPUs.
+- **Coding-specific Deepseek-Coder**: superseded by DeepSeek-R1 for most use cases unless you specifically need fill-in-the-middle.
+
+## The meta-advice
+
+Start small. Pull Gemma 3n or Llama 3.2 3B first. Get your app working end to end with a small model before you chase quality with a bigger one. Nine times out of ten, the small model does what you need, and the other time, you'll know exactly what "bigger" needs to solve.
+
+Upgrading model size later is one `ollama pull` away. Downgrading a system that assumes 12 GB of VRAM is how you learn about refund windows.

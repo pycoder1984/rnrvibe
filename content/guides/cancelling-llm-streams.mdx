@@ -1,0 +1,198 @@
+---
+title: "Cancelling In-Flight LLM Streams"
+date: "2026-04-08"
+description: "Users click Stop. Tabs close. Pages navigate. If your chat API keeps generating, you're burning tokens and server memory for nothing. Here's how to cancel cleanly."
+tags: ["intermediate", "streaming", "ux", "llm"]
+readTime: "6 min read"
+difficulty: "Intermediate"
+---
+
+# Cancelling In-Flight LLM Streams
+
+A user asks your chat for something, sees the response start to stream, and immediately realizes they want something different. They click Stop. What happens next in your system depends entirely on how carefully you wired the plumbing.
+
+The lazy version: the client stops displaying tokens, but your server keeps generating, your LLM keeps burning tokens, and your rate limit keeps counting the request. Multiply by every user on every poorly-phrased prompt and you've got real waste.
+
+The correct version: the click propagates from browser → network → server → LLM, and everything upstream stops producing tokens within a few hundred milliseconds. Here's how to build that.
+
+## The chain of cancellation
+
+Every layer needs to participate:
+
+1. The browser needs to abort the `fetch`.
+2. The server needs to notice the disconnected client.
+3. The LLM call needs to be cancellable when the server notices.
+4. Any reader loops need to exit when the call is cancelled.
+
+Miss any one, and a zombie request hangs around on a server you're paying for.
+
+## Client: abort the fetch
+
+`AbortController` is the standard tool. You create one per request, pass its signal to `fetch`, and call `abort()` when you want to stop.
+
+```tsx
+"use client";
+import { useRef, useState } from "react";
+
+export function ChatInput() {
+  const [streaming, setStreaming] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  async function send(prompt: string) {
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStreaming(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+        signal: controller.signal,
+      });
+      const reader = res.body!.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        // …render token…
+      }
+    } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        // user cancelled — that's fine
+      } else {
+        throw err;
+      }
+    } finally {
+      setStreaming(false);
+      controllerRef.current = null;
+    }
+  }
+
+  function cancel() {
+    controllerRef.current?.abort();
+  }
+
+  return (
+    <>
+      {streaming ? (
+        <button onClick={cancel}>Stop</button>
+      ) : (
+        <button onClick={() => send("…")}>Send</button>
+      )}
+    </>
+  );
+}
+```
+
+Two details that are easy to miss:
+
+- **Catch `AbortError` specifically.** Don't let an expected cancel look like a real error in your logs.
+- **Clear `controllerRef` in `finally`.** Otherwise you'll `.abort()` on a dead controller next time the user navigates, which is harmless but confusing in devtools.
+
+## Server: detect the disconnect
+
+On the Next.js App Router, your request handler receives a `Request` object that carries an `AbortSignal` on `request.signal`. When the client disconnects — explicit abort, tab close, network drop — that signal fires.
+
+```ts
+// app/api/chat/route.ts
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const token of streamGenerate({ prompt, signal: req.signal })) {
+          if (req.signal.aborted) break;
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ token })}\n\n`));
+        }
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") throw err;
+      } finally {
+        controller.close();
+      }
+    },
+    cancel() {
+      // Browser disconnected — also fires here.
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+```
+
+Two places to watch for cancellation: the signal passed into your generator, and the `cancel` callback on the `ReadableStream`. Different runtimes wire these differently — Node fires the signal reliably; edge runtimes sometimes only fire `cancel()`. Handle both.
+
+## Provider: cancel the upstream call
+
+This is the layer most implementations get wrong. They detect the client disconnect, they break out of the reader loop, but they never tell the *LLM provider* to stop generating. The server stops writing tokens to the client, but Ollama or OpenRouter keeps producing them into a buffer that gets thrown away.
+
+The fix: forward the abort signal all the way to `fetch`.
+
+```ts
+export async function* streamGenerate(opts: {
+  prompt: string;
+  signal?: AbortSignal;
+}): AsyncGenerator<string> {
+  const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+    method: "POST",
+    body: JSON.stringify({ model: DEFAULT, prompt: opts.prompt, stream: true }),
+    signal: opts.signal,
+  });
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (opts.signal?.aborted) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const json = JSON.parse(line);
+        if (json.response) yield json.response;
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+}
+```
+
+Two cancellation points in the reader loop — the signal check and the `fetch` abort — give you belt and braces. The `reader.cancel()` in `finally` releases the underlying connection immediately instead of letting it drain.
+
+For Ollama, forwarding the abort to `fetch` is enough — Ollama drops the generation when its client disconnects. For OpenRouter and other hosted APIs, check the provider docs: some bill for tokens generated even after the client disconnects. In practice, most respect disconnect.
+
+## What happens when cancel races with completion
+
+A common bug: the response finishes just as the user clicks Stop. The controller aborts, but the stream already closed, and now you're aborting a dead controller.
+
+`AbortController.abort()` is a no-op on a controller whose signal already fired, so this is safe. But if you have any `finally` logic that assumes the cancel "did something," you might double-fire UI state. Simplest fix: check `streaming` before responding to the cancel click.
+
+```tsx
+function cancel() {
+  if (!streaming) return;
+  controllerRef.current?.abort();
+}
+```
+
+## Testing cancellation properly
+
+You can't eyeball this — the happy path works whether you wired cancellation or not. Three tests that catch real bugs:
+
+1. **Start a long response, click Stop halfway, watch your server logs.** The request should log a cancellation event. If it logs a completed response, your signal isn't propagating.
+
+2. **Start a response, close the tab without clicking Stop.** Same expectation. Browser tab close should fire the same cancellation path as explicit abort.
+
+3. **Start a response, kill your network** (devtools → throttling → offline). The server should detect the dead connection within a few seconds. If it sits there generating until the natural completion, you have a half-closed TCP problem.
+
+## What this gives you
+
+Under load, the difference between a cancellation-aware chat API and a lazy one is enormous. A lazy one keeps processing every abandoned request to completion. A careful one frees up capacity the instant the user loses interest.
+
+For a system that handles real traffic — or just for a personal project running on modest hardware — this is the difference between "works" and "scales."

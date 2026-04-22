@@ -27,12 +27,25 @@ export const metadata: Metadata = {
     "RnRVibe",
     "vibecoding",
     "vibe coding",
+    "vibe coding tutorial",
     "AI coding tools",
-    "local AI",
-    "Ollama",
-    "Stable Diffusion",
-    "free AI tools",
+    "AI coding assistant",
     "AI developer tools",
+    "AI code generator",
+    "free AI tools",
+    "free AI chat",
+    "free AI image generator",
+    "AI research tool",
+    "local AI",
+    "local LLM",
+    "Ollama tools",
+    "Ollama web UI",
+    "Stable Diffusion online",
+    "MusicGen",
+    "open source AI tools",
+    "self-hosted AI",
+    "AI pair programming",
+    "prompt engineering",
   ],
   metadataBase: new URL("https://www.rnrvibe.com"),
   openGraph: {
@@ -70,11 +83,7 @@ const websiteJsonLd = {
   url: "https://www.rnrvibe.com",
   description:
     "Lightweight vibecoding platform with free AI-powered tools, guides, and resources.",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://www.rnrvibe.com/blog?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
+  inLanguage: "en-US",
 };
 
 const organizationJsonLd = {

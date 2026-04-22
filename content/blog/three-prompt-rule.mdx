@@ -1,0 +1,45 @@
+---
+title: "The Three-Prompt Rule"
+date: "2026-04-18"
+description: "A simple heuristic for knowing when the AI is going to keep missing the mark — and when it's on you to stop typing and start reading."
+tags: ["workflow", "prompt-engineering", "vibecoding"]
+readTime: "4 min read"
+---
+
+# The Three-Prompt Rule
+
+I used to keep re-prompting when the AI got something almost right. Reword it, add more constraints, clarify the edge case, try again. Sometimes the next attempt nailed it. Often it drifted further.
+
+At some point I started keeping score. The answer was consistent enough that I now treat it as a rule: **if the third prompt still isn't right, I stop prompting and open the code.**
+
+## Why three
+
+One bad attempt is noise. The model misread you, or hit a bad sample in its decoding.
+
+Two bad attempts in a row is a signal that the model doesn't have the context you think it has. Either the task is more specific than your prompt captures, or there's a constraint you're assuming it knows.
+
+Three bad attempts is the model telling you it's not going to figure this out from words alone.
+
+## What "re-prompting" usually looks like when it's failing
+
+- Each prompt is longer than the last. You keep adding "make sure you..." clauses.
+- You're explaining the *same* constraint in different phrasings. The model isn't missing it because you said it wrong — it's missing it because its first answer locked onto the wrong frame.
+- You've started apologizing for the prompt ("sorry, I should have mentioned..."). The prompt has become a conversation transcript instead of a brief.
+
+When I see those patterns, that's attempt three. Stop.
+
+## What to do instead
+
+Three things tend to work, roughly in order of effort:
+
+**Read the bad output carefully.** Not skim — read. Nine times out of ten the model is telling you what it thinks you asked for, and the gap between that and what you actually want is the gap in your prompt. Once you see the gap, you rewrite the prompt from scratch instead of bolting on another clause.
+
+**Give it an example.** If you've asked three times and failed, it's cheaper to paste a correct version of *something similar* than to describe the shape again. One concrete example beats three rounds of abstract description.
+
+**Write the first line yourself.** When the model keeps starting from the wrong place, start it from the right place. Paste the opening signature, the imports, the return type. The model fills in the middle reliably even when it can't pick the frame on its own.
+
+## The anti-pattern this fights
+
+The temptation with AI tools is to keep the prompt-retry loop going because each attempt feels cheap. Ten seconds to retype, ten seconds to wait. Stretch that over an afternoon and you've spent three hours not writing code, not reading code, not thinking — just tuning prompts against a target the model can't see.
+
+The three-prompt rule isn't about distrusting AI. It's about noticing when you've stopped using AI and started negotiating with it. When the negotiation isn't converging, the next move is always on you.

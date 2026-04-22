@@ -1,0 +1,71 @@
+---
+title: "A Year of Vibecoding: Lessons I Didn't Expect"
+date: "2026-04-14"
+description: "Twelve months of shipping with AI-first workflows, distilled into the things nobody tells you in the tutorials."
+tags: ["reflection", "vibecoding", "workflow"]
+readTime: "6 min read"
+---
+
+# A Year of Vibecoding: Lessons I Didn't Expect
+
+A year ago I started treating AI as the default way I write code instead of a fancy autocomplete I'd use when I was tired. Some of what I expected to happen did. A lot didn't. Here's what actually changed.
+
+## The code I write is shorter
+
+Not because the AI is making it shorter. Because the AI makes it easy to *rewrite*. When rewriting is cheap, you cut. A function that used to sit at 60 lines because I didn't want to redo it now sits at 25 because the cost of the redo is five minutes and a review pass.
+
+The knock-on effect: my PRs are smaller. My files are smaller. My diffs are smaller. I didn't set out to change any of that.
+
+## I read more code than I write
+
+This was the surprise. I assumed AI would mean less reading — that I'd describe a thing and trust it and move on. In practice I spend maybe 30% of my time prompting and 70% reading what came back. Every generated function is a piece of code I haven't written, which means I haven't thought it through, which means I have to think it through *after the fact*.
+
+Reading code is a skill I neglected for years. It's now the skill I lean on hardest.
+
+## My architecture instincts got better, not worse
+
+I expected the opposite. I thought leaning on AI for implementation would atrophy the higher-level muscles. What happened instead: the implementation step got fast enough that I had more headspace for the structure. I'd finish what used to be an afternoon's worth of coding in an hour, and then spend the rest of the afternoon thinking about whether the shape was right.
+
+More time at the whiteboard. Less time typing. More architecture, not less.
+
+## Boilerplate is not a thing I write anymore
+
+Zero migrations hand-written. Zero API route scaffolds. Zero test file skeletons. Zero form validation schemas from scratch. The AI is reliably good at structural, rule-following code — the stuff that used to eat two hours of my morning before I got to anything interesting.
+
+What I miss is nothing.
+
+## The hardest things got harder
+
+The easy parts of my job got *much* easier. The hard parts got *harder*. Because now the hard parts aren't "figure out the API shape" or "write the happy-path CRUD" — those are done before coffee. The hard parts are the things AI still can't do for you: judgment calls about what the user actually wants, distributed-system edge cases, deciding what to *not* build.
+
+That's a good trade, but it means my days are more concentrated. Less glide, more grind.
+
+## Review discipline compounds
+
+The devs I know who had strong review habits before AI got faster with AI. The devs who didn't have strong review habits shipped more bugs. AI is a multiplier on your existing process — it amplifies what you already do, it doesn't fix what you don't.
+
+If you don't read diffs carefully before you commit, AI will make that cost you more, not less.
+
+## My prompts got shorter
+
+The first-year arc on prompts goes: start terse, get burned, write essays, realize the essays don't help, get terse again but for better reasons.
+
+A year in, my prompts are mostly the shape of: one sentence of goal, one line of constraint, one example if the shape matters. The rest is the AI's job. Longer prompts don't usually produce better code — they usually produce code that's trying too hard to satisfy the prompt.
+
+## The tools I rely on turned over
+
+None of the tools I was using a year ago are the ones I use now. Different models, different IDEs, different wrappers, different workflows. I stopped getting attached.
+
+The *patterns* — review discipline, small PRs, testable shapes — those stuck. Whatever tool I'm using next year will be running the same patterns on a different engine.
+
+## The best thing I did
+
+Made myself write one summary paragraph at the end of every vibecoded session: what I built, what I'd have done differently, what I didn't understand about the generated code. Five minutes, in the same notes file.
+
+Reading those notes three months later is the most useful thing I do. It's where the actual learning lives — not in the sessions themselves but in the reflection on top of them.
+
+## The best thing I learned
+
+Vibecoding isn't a replacement for knowing how to code. It's a replacement for *typing* code. The thinking part is still yours. You get to do more of it, faster, with better tooling — but if you offload the thinking, the output gets worse, not better.
+
+A year later, I'm a better programmer than I was. Not because AI made me one. Because AI freed up the time and attention to *become* one.

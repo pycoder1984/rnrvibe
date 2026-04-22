@@ -12,6 +12,7 @@ export interface PostMeta {
   tags?: string[];
   readTime?: string;
   difficulty?: string;
+  author?: string;
 }
 
 export function getPostsByType(type: "blog" | "guides"): PostMeta[] {

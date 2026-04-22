@@ -20,9 +20,28 @@ export const metadata = {
   },
 };
 
+const projectsItemListJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "Vibecoded Sample Projects",
+  description: "Interactive projects built with AI-assisted development — live demos with prompts included.",
+  numberOfItems: projects.length,
+  itemListElement: projects.map((project, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    url: `https://www.rnrvibe.com${project.href}`,
+    name: project.title,
+    description: project.description,
+  })),
+};
+
 export default function ProjectsPage() {
   return (
     <div className="relative min-h-screen bg-neutral-950 text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(projectsItemListJsonLd) }}
+      />
       <Image
         src="/tools-bg.png"
         alt=""

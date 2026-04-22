@@ -83,6 +83,13 @@ See `DEEP_RESEARCH_PLAN.md` for the full write-up, including the v2 parking lot 
 
 `/api/services` (service probe) and `/api/service-logs` (bat-file log tailing from the Desktop) both enforce an `isLocal(req)` check that (a) rejects any request carrying `cf-connecting-ip` (i.e. coming through Cloudflare) and (b) requires the `Host` header to start with `localhost` / `127.0.0.1`. Returns 403 otherwise. Use this same pattern for any future route that exposes infrastructure topology — it must never leak through the tunnel.
 
+### Middleware (`middleware.ts`)
+
+Two site-wide invariants enforced at the edge (matcher: `/dashboard/:path*`, `/api/:path*`):
+
+1. **Dashboard lockdown** — `/dashboard/*` and `/api/dashboard/*` get the same Cloudflare-header + localhost-host check as the routes above. This is belt-and-braces with `isLocal(req)` inside individual routes; keep both.
+2. **CORS allowlist** — only `https://www.rnrvibe.com`, `https://rnrvibe.com`, `http://localhost:4000`, `http://localhost:3000` are allowed origins for `/api/*`. Preflight from anywhere else gets 403; non-preflight from disallowed origins gets no CORS headers (so the browser blocks it). If you add a new frontend that calls the API, add its origin to `ALLOWED_ORIGINS` here.
+
 ## Conventions
 
 - Image tools (Image Generator, Image Studio, Logo Generator) check Stable Diffusion connectivity on mount and show an error banner with retry if down. Follow this pattern for any new image tools.
