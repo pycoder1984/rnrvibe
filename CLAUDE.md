@@ -11,7 +11,7 @@ RnR Vibe is a vibecoding platform at rnrvibe.com. It has AI-powered tools (chat,
 ```bash
 npm run dev                                 # Dev server on port 3000
 npm run build && npm run start -- -p 4000   # Production on port 4000
-npm run lint                                # ESLint (flat config, eslint 9)
+npm run lint                                # ESLint — script is bare `eslint` (flat config via eslint.config.mjs, lints whole repo). No --fix by default.
 ```
 
 No test framework is configured — there are no unit or integration tests.
@@ -46,7 +46,7 @@ All LLM calls go through `generate()` and `streamGenerate()` in `lib/llm-provide
 ### API route pattern
 
 All AI API routes live in `app/api/` and follow this flow:
-1. Rate-limit check via `lib/rate-limit.ts` (in-memory, per-IP, per-namespace)
+1. Rate-limit check via `lib/rate-limit.ts` (in-memory, per-IP, per-namespace). Each route passes a distinct `namespace` to `checkRateLimit()` — pick one per route, don't reuse an existing namespace or buckets will share state across unrelated endpoints (e.g. deep-research uses `"deep-research"` at 10/hour because its fan-out cost differs from chat).
 2. Input validation and `detectInjection()` from `lib/guardrails.ts`
 3. `sanitizeInput()` → `hardenSystemPrompt()` → call LLM provider
 4. `filterOutput()` on the response before returning
@@ -81,7 +81,7 @@ See `DEEP_RESEARCH_PLAN.md` for the full write-up, including the v2 parking lot 
 
 ### Localhost-only dashboard routes
 
-`/api/services` (service probe) and `/api/service-logs` (bat-file log tailing from the Desktop) both enforce an `isLocal(req)` check that (a) rejects any request carrying `cf-connecting-ip` (i.e. coming through Cloudflare) and (b) requires the `Host` header to start with `localhost` / `127.0.0.1`. Returns 403 otherwise. Use this same pattern for any future route that exposes infrastructure topology — it must never leak through the tunnel.
+`/api/services` (service probe), `/api/service-logs` (bat-file log tailing from the Desktop), and `/api/system-metrics` (CPU / RAM / GPU sampling) all enforce an `isLocal(req)` check that (a) rejects any request carrying `cf-connecting-ip` (i.e. coming through Cloudflare) and (b) requires the `Host` header to start with `localhost` / `127.0.0.1`. Returns 403 otherwise. Use this same pattern for any future route that exposes infrastructure topology — it must never leak through the tunnel.
 
 ### Middleware (`middleware.ts`)
 
@@ -99,7 +99,7 @@ Two site-wide invariants enforced at the edge (matcher: `/dashboard/:path*`, `/a
 - Project entries in `data/projects.ts` need: href, title, description, time, icon, tags, difficulty (Beginner/Intermediate/Advanced).
 - Components use Tailwind with the project's dark theme (neutral-950 bg, purple-500 accents).
 - Path alias `@/*` maps to the project root.
-- Adding a new tool requires: a page in `app/tools/`, a tool ID entry in `ALLOWED_SYSTEM_PROMPTS` in `lib/guardrails.ts`, and a registry entry in `data/tools.ts`.
+- Adding a new tool requires: a page in `app/tools/<slug>/page.tsx`, a tool ID entry in `ALLOWED_SYSTEM_PROMPTS` in `lib/guardrails.ts`, and a registry entry in `data/tools.ts`. Optionally add `app/tools/<slug>/layout.tsx` with per-tool `metadata` + a `FAQPage` JSON-LD block (see `app/tools/chat/layout.tsx` for the pattern) — the `/faq` page and sitemap pick these up for SEO. Project (demo) metadata lives separately in `lib/project-metadata.ts`.
 
 ## Environment variables
 
