@@ -1,7 +1,8 @@
 "use client";
 
 import BlogNav from "@/components/BlogNav";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useLocalStorageState } from "@/lib/use-local-storage";
 
 interface Snippet {
   id: number;
@@ -26,6 +27,9 @@ const LANGUAGES = [
 ];
 
 const STORAGE_KEY = "rnr-snippet-manager";
+
+const EMPTY_SNIPPETS: Snippet[] = [];
+const initialSnippets = () => EMPTY_SNIPPETS;
 
 // Simple regex-based syntax highlighting (no external deps)
 function highlightCode(code: string, language: string): string {
@@ -95,8 +99,7 @@ function highlightCode(code: string, language: string): string {
 }
 
 export default function SnippetManagerPage() {
-  const [snippets, setSnippets] = useState<Snippet[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [snippets, setSnippets, loaded] = useLocalStorageState<Snippet[]>(STORAGE_KEY, initialSnippets);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -112,26 +115,6 @@ export default function SnippetManagerPage() {
 
   // Clipboard feedback
   const [copiedId, setCopiedId] = useState<number | null>(null);
-
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSnippets(JSON.parse(stored));
-      }
-    } catch {
-      // ignore
-    }
-    setLoaded(true);
-  }, []);
-
-  // Save to localStorage
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(snippets));
-    }
-  }, [snippets, loaded]);
 
   // All unique tags
   const allTags = useMemo(() => {

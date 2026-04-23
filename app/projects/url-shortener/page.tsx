@@ -1,7 +1,8 @@
 "use client";
 
 import BlogNav from "@/components/BlogNav";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useLocalStorageState } from "@/lib/use-local-storage";
 
 interface ShortenedUrl {
   id: string;
@@ -13,6 +14,9 @@ interface ShortenedUrl {
 
 const STORAGE_KEY = "rnrvibe-urls";
 
+const EMPTY_URLS: ShortenedUrl[] = [];
+const initialUrls = () => EMPTY_URLS;
+
 function generateId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -20,20 +24,8 @@ function generateId(): string {
 export default function UrlShortenerPage() {
   const [url, setUrl] = useState("");
   const [alias, setAlias] = useState("");
-  const [urls, setUrls] = useState<ShortenedUrl[]>([]);
+  const [urls, setUrls] = useLocalStorageState<ShortenedUrl[]>(STORAGE_KEY, initialUrls);
   const [copied, setCopied] = useState<string | null>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { setUrls(JSON.parse(stored)); } catch { /* ignore */ }
-    }
-  }, []);
-
-  const save = (updated: ShortenedUrl[]) => {
-    setUrls(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
 
   const shorten = () => {
     if (!url.trim()) return;
@@ -44,13 +36,13 @@ export default function UrlShortenerPage() {
       clicks: 0,
       created: new Date().toISOString(),
     };
-    save([entry, ...urls]);
+    setUrls((prev) => [entry, ...prev]);
     setUrl("");
     setAlias("");
   };
 
   const remove = (id: string) => {
-    save(urls.filter((u) => u.id !== id));
+    setUrls((prev) => prev.filter((u) => u.id !== id));
   };
 
   const copyLink = (entry: ShortenedUrl) => {
@@ -61,7 +53,7 @@ export default function UrlShortenerPage() {
   };
 
   const visit = (entry: ShortenedUrl) => {
-    save(urls.map((u) => (u.id === entry.id ? { ...u, clicks: u.clicks + 1 } : u)));
+    setUrls((prev) => prev.map((u) => (u.id === entry.id ? { ...u, clicks: u.clicks + 1 } : u)));
     window.open(entry.target, "_blank");
   };
 

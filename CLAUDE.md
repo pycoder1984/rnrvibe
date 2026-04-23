@@ -43,6 +43,16 @@ The SD and audio start scripts detect a conflicting service and offer to auto-st
 
 All LLM calls go through `generate()` and `streamGenerate()` in `lib/llm-provider.ts`. This module health-checks Ollama every 30s; if Ollama is down and `OPENROUTER_API_KEY` is set, it falls back to OpenRouter. Chat route handles both providers' streaming formats: Ollama uses NDJSON, OpenRouter uses SSE (`data: {json}\n\n`).
 
+### Chat streaming: NDJSON → SSE normalization (`app/api/chat/route.ts`)
+
+`streamGenerate()` returns the raw upstream body untouched, so the chat route is the single place where the two provider formats are converted into a unified SSE stream for the browser. Keep the invariants below when editing that route — mixing them up is the common cause of "stream works with Ollama but not OpenRouter" (or vice versa) bugs.
+
+- **Ollama → NDJSON**: one JSON object per line terminated by `\n`. Tokens arrive as `{ response: "..." }`; completion is signaled by `{ done: true, ... }` on a final line. No buffering across chunks is needed because `\n.filter(Boolean)` is line-complete at chunk boundaries — an Ollama chunk is always whole lines.
+- **OpenRouter → SSE**: framed lines prefixed `data: ` and terminated by `\n\n`. Tokens are at `json.choices[0].delta.content`; the terminal frame is the literal string `data: [DONE]`. A single TCP chunk can split mid-frame, so the route keeps an `sseBuffer` across reads and only parses lines up to the last newline, pushing the tail back into the buffer.
+- **Downstream format (what the browser sees)**: both paths re-emit `data: {"token":"..."}\n\n` during the stream and a final `data: {"done":true}\n\n`. Any client that reads from `/api/chat` with `stream: true` should assume SSE regardless of which upstream served the request.
+- `filterOutput()` runs on the full accumulated response before `addLog()` — not on every token. This matters because the guardrail's pattern matching is line-oriented and would produce false positives against partial tokens.
+- On `AbortError` (timeout hit), the route logs `status: "timeout"` but does not enqueue any further SSE frames; the browser sees an abruptly closed stream. Clients should treat a stream that ends without a `{done:true}` frame as an error, not a successful empty response.
+
 ### API route pattern
 
 All AI API routes live in `app/api/` and follow this flow:

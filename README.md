@@ -1,6 +1,6 @@
 # RnR Vibe
 
-A vibecoding platform with 29 AI-powered tools, 22 interactive projects, 31 blog posts, and 28 guides — all running locally with Ollama, Stable Diffusion, and MusicGen/AudioGen. No cloud API bills.
+A vibecoding platform with 29 AI-powered tools, 26 interactive projects, 35 blog posts, and 31 guides — all running locally with Ollama, Stable Diffusion, and MusicGen/AudioGen. No cloud API bills.
 
 **Live at [rnrvibe.com](https://www.rnrvibe.com)**
 
@@ -50,7 +50,7 @@ The SD and audio start scripts detect a conflicting service and offer to auto-st
 app/
   api/              # 14 API routes (chat, image generation, deep-research, services, etc.)
   tools/            # 29 AI tool pages (incl. deep-research)
-  projects/         # 22 interactive project demos
+  projects/         # 26 interactive project demos
   blog/             # Blog listing + [slug] pages
   guides/           # Guide listing + [slug] pages
   compare/          # Comparison pages (vs Cursor, Copilot, etc.)
@@ -116,8 +116,8 @@ The `/tools/deep-research` tool runs a single-pass research pipeline (plan → s
 ## Key Features
 
 - **29 AI Tools** — chat, code generation, image generation, logo design, music + sound-effect generation, code review, Deep Research, and more
-- **22 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Drawing canvas, etc.)
-- **31 Blog Posts + 28 Guides** — MDX content about vibecoding, AI tools, and development
+- **26 Interactive Projects** — hands-on demos (Pomodoro timer, Kanban board, Pixel art editor, Mind map, etc.)
+- **35 Blog Posts + 31 Guides** — MDX content about vibecoding, AI tools, and development
 - **Security Hardened** — input sanitization, prompt injection detection, output filtering, rate limiting
 - **Fully Local AI** — no external API keys needed, runs on your own hardware
 - **SEO Optimized** — dynamic OG images, structured data, sitemap, RSS feed

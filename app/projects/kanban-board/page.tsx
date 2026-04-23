@@ -2,6 +2,7 @@
 
 import BlogNav from "@/components/BlogNav";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocalStorageState } from "@/lib/use-local-storage";
 
 interface Task {
   id: string;
@@ -24,24 +25,13 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-function loadTasks(): Task[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
+function defaultTasks(): Task[] {
   return [
     { id: generateId(), title: "Design landing page", description: "Create wireframes and mockups", column: "todo" },
     { id: generateId(), title: "Set up project repo", description: "", column: "todo" },
     { id: generateId(), title: "Build auth flow", description: "OAuth + email/password", column: "inprogress" },
     { id: generateId(), title: "Write API docs", description: "Document all endpoints", column: "done" },
   ];
-}
-
-function saveTasks(tasks: Task[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  } catch {}
 }
 
 /* ── Inline-editable text ─────────────────────────────────── */
@@ -120,30 +110,20 @@ function EditableText({
 
 /* ── Main page ────────────────────────────────────────────── */
 export default function KanbanBoardPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const [tasks, setTasks, mounted] = useLocalStorageState<Task[]>(STORAGE_KEY, defaultTasks);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<ColumnId | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [addingTo, setAddingTo] = useState<ColumnId | null>(null);
 
-  useEffect(() => {
-    setTasks(loadTasks());
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) saveTasks(tasks);
-  }, [tasks, mounted]);
-
   const updateTask = useCallback((id: string, patch: Partial<Task>) => {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  }, []);
+  }, [setTasks]);
 
   const deleteTask = useCallback((id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }, [setTasks]);
 
   const addTask = (column: ColumnId) => {
     const title = newTitle.trim();

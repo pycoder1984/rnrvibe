@@ -1,7 +1,7 @@
 "use client";
 import { getApiBase } from "@/lib/api-config";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 interface SearchResult {
   title: string;
@@ -56,7 +56,6 @@ const staticResults: SearchResult[] = [
 
 export default function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [dynamicResults, setDynamicResults] = useState<SearchResult[]>([]);
   const hasFetched = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,46 +71,41 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
       });
   }, []);
 
+  const handleClose = useCallback(() => {
+    setQuery("");
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (open) {
       inputRef.current?.focus();
       fetchIndex();
-    } else {
-      setQuery("");
-      setResults([]);
     }
   }, [open, fetchIndex]);
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
-    const q = query.toLowerCase();
-    const allResults = [...staticResults, ...dynamicResults];
-    setResults(
-      allResults.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.description.toLowerCase().includes(q)
-      ).slice(0, 8)
-    );
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [] as SearchResult[];
+    const all = [...staticResults, ...dynamicResults];
+    return all
+      .filter((r) => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q))
+      .slice(0, 8);
   }, [query, dynamicResults]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        onClose();
+        handleClose();
       }
       if (e.key === "Escape" && open) {
         e.preventDefault();
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   if (!open) return null;
 
@@ -138,7 +132,7 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
   return (
     <div
       className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh]"
-      onClick={onClose}
+      onClick={handleClose}
       role="dialog"
       aria-modal="true"
       aria-label="Search"
@@ -179,7 +173,7 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
                   key={r.href}
                   href={r.href}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-800/50 transition-colors"
-                  onClick={onClose}
+                  onClick={handleClose}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-white truncate">{r.title}</div>

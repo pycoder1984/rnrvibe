@@ -2,6 +2,7 @@
 
 import BlogNav from "@/components/BlogNav";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocalStorageState } from "@/lib/use-local-storage";
 
 interface Node {
   id: string;
@@ -29,41 +30,13 @@ function defaultNodes(): Node[] {
   return [root, a, b, c];
 }
 
-function load(): Node[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-    }
-  } catch {}
-  return defaultNodes();
-}
-
-function save(nodes: Node[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes));
-  } catch {}
-}
-
 export default function MindMapPage() {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const [nodes, setNodes, mounted] = useLocalStorageState<Node[]>(STORAGE_KEY, defaultNodes);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftText, setDraftText] = useState("");
   const svgRef = useRef<SVGSVGElement>(null);
   const dragState = useRef<{ id: string; offsetX: number; offsetY: number; moved: boolean } | null>(null);
-
-  useEffect(() => {
-    setNodes(load());
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) save(nodes);
-  }, [nodes, mounted]);
 
   const nodeById = useMemo(() => {
     const m = new Map<string, Node>();
@@ -109,7 +82,7 @@ export default function MindMapPage() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [svgPoint]);
+  }, [svgPoint, setNodes]);
 
   const addChild = (parentId: string) => {
     const parent = nodeById.get(parentId);
