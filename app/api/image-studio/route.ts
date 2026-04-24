@@ -221,6 +221,63 @@ async function handleOutpaint(body: Record<string, unknown>) {
   return NextResponse.json({ image: data.images[0], seed: resultSeed });
 }
 
+// ─── Remove Background (rembg extension) ────────────────────────────
+//
+// Calls the sd-webui-rembg extension endpoint. Note: the endpoint lives at
+// POST /rembg, NOT under /sdapi/v1/. The extension runs onnxruntime on CPU,
+// so it doesn't steal VRAM from SD. First call for a given model downloads
+// the ONNX weights (~100-200 MB) to the user's ~/.u2net cache, which is why
+// the timeout is generous.
+
+async function handleRemoveBg(body: Record<string, unknown>) {
+  const { image, model, alphaMatting, returnMask } = body;
+
+  if (!image || typeof image !== "string") {
+    return NextResponse.json({ error: "Image is required" }, { status: 400 });
+  }
+
+  const allowedModels = ["u2net", "u2netp", "u2net_human_seg", "u2net_cloth_seg", "silueta", "isnet-general-use"];
+  const modelName = typeof model === "string" && allowedModels.includes(model) ? model : "u2net";
+
+  const res = await fetch(`${SD_URL}/rembg`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      input_image: image as string,
+      model: modelName,
+      return_mask: Boolean(returnMask),
+      alpha_matting: Boolean(alphaMatting),
+      alpha_matting_foreground_threshold: 240,
+      alpha_matting_background_threshold: 10,
+      alpha_matting_erode_size: 10,
+    }),
+    signal: AbortSignal.timeout(180000),
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return NextResponse.json(
+        { error: "Background removal extension not loaded. Restart Stable Diffusion to activate sd-webui-rembg." },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ error: "Background removal failed. Try a different model." }, { status: 502 });
+  }
+
+  const data = await res.json();
+  if (!data.image) {
+    return NextResponse.json({ error: "No image returned" }, { status: 502 });
+  }
+
+  // The rembg endpoint prefixes the base64 with `data:image/png;base64,` — strip it
+  // to match the convention the other handlers return (bare base64).
+  const cleaned = typeof data.image === "string" && data.image.startsWith("data:")
+    ? data.image.split(",")[1]
+    : data.image;
+
+  return NextResponse.json({ image: cleaned });
+}
+
 // ─── Caption (Interrogate) ───────────────────────────────────────────
 
 async function handleCaption(body: Record<string, unknown>) {
@@ -295,11 +352,14 @@ export async function POST(req: NextRequest) {
       case "outpaint":
         result = await handleOutpaint(body);
         break;
+      case "remove-bg":
+        result = await handleRemoveBg(body);
+        break;
       case "caption":
         result = await handleCaption(body);
         break;
       default:
-        return NextResponse.json({ error: "Invalid action. Use: upscale, restyle, inpaint, outpaint, caption" }, { status: 400 });
+        return NextResponse.json({ error: "Invalid action. Use: upscale, restyle, inpaint, outpaint, remove-bg, caption" }, { status: 400 });
     }
 
     addLog({

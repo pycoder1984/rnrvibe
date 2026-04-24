@@ -4,13 +4,14 @@ import { getApiBase } from "@/lib/api-config";
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef, useEffect, useCallback } from "react";
 
-type Tab = "upscale" | "restyle" | "inpaint" | "outpaint" | "caption";
+type Tab = "upscale" | "restyle" | "inpaint" | "outpaint" | "remove-bg" | "caption";
 
 const TABS: { id: Tab; name: string; icon: string; desc: string }[] = [
   { id: "upscale", name: "Upscale & Enhance", icon: "\u2B06", desc: "AI upscale + face restore" },
   { id: "restyle", name: "Restyle", icon: "\u{1F3A8}", desc: "Transform with a prompt" },
   { id: "inpaint", name: "Inpaint", icon: "\u{1F58C}\uFE0F", desc: "Edit parts of an image" },
   { id: "outpaint", name: "Outpaint", icon: "\u{1F5BC}️", desc: "Extend past the canvas" },
+  { id: "remove-bg", name: "Remove Background", icon: "✂", desc: "Cut out subject, transparent PNG" },
   { id: "caption", name: "Image to Prompt", icon: "\u{1F4DD}", desc: "Get AI description" },
 ];
 
@@ -306,7 +307,7 @@ function InpaintCanvas({ image, onMask }: { image: string; onMask: (mask: string
 
 // ─── Result Display ──────────────────────────────────────────────────
 
-function ResultImage({ image, label }: { image: string; label?: string }) {
+function ResultImage({ image, label, transparent }: { image: string; label?: string; transparent?: boolean }) {
   const download = () => {
     const link = document.createElement("a");
     link.href = `data:image/png;base64,${image}`;
@@ -314,10 +315,21 @@ function ResultImage({ image, label }: { image: string; label?: string }) {
     link.click();
   };
 
+  // Checkerboard background so transparency is visible at a glance.
+  const checkerStyle = transparent
+    ? {
+        backgroundColor: "#262626",
+        backgroundImage:
+          "linear-gradient(45deg, #3a3a3a 25%, transparent 25%), linear-gradient(-45deg, #3a3a3a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #3a3a3a 75%), linear-gradient(-45deg, transparent 75%, #3a3a3a 75%)",
+        backgroundSize: "20px 20px",
+        backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+      }
+    : undefined;
+
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900 overflow-hidden">
       {label && <div className="px-3 py-2 border-b border-neutral-800 text-xs text-neutral-400">{label}</div>}
-      <div className="aspect-square bg-neutral-950">
+      <div className={`aspect-square ${transparent ? "" : "bg-neutral-950"}`} style={checkerStyle}>
         <img src={`data:image/png;base64,${image}`} alt="Result" className="w-full h-full object-contain" />
       </div>
       <div className="px-3 py-2 border-t border-neutral-800 flex justify-end">
@@ -370,6 +382,11 @@ export default function ImageStudioPage() {
   const [padBottom, setPadBottom] = useState(0);
   const [outpaintPrompt, setOutpaintPrompt] = useState("");
   const [outpaintDenoising, setOutpaintDenoising] = useState(0.85);
+
+  // Remove-bg state
+  const [bgModel, setBgModel] = useState("u2net");
+  const [bgAlphaMatting, setBgAlphaMatting] = useState(false);
+  const [bgReturnMask, setBgReturnMask] = useState(false);
 
   // Caption state
   const [captionModel, setCaptionModel] = useState("clip");
@@ -474,6 +491,10 @@ export default function ImageStudioPage() {
       setError("Failed to prepare outpaint inputs — try re-uploading the image");
     }
   };
+
+  const doRemoveBg = () => callApi({
+    action: "remove-bg", image, model: bgModel, alphaMatting: bgAlphaMatting, returnMask: bgReturnMask,
+  });
 
   const doCaption = () => callApi({ action: "caption", image, model: captionModel });
 
@@ -707,6 +728,42 @@ export default function ImageStudioPage() {
               </div>
             )}
 
+            {tab === "remove-bg" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Segmentation Model</label>
+                  <select value={bgModel} onChange={(e) => setBgModel(e.target.value)}
+                    className="w-full rounded-lg border border-neutral-800 bg-neutral-900 p-2 text-sm text-neutral-200">
+                    <option value="u2net">u2net — general purpose (best default)</option>
+                    <option value="u2netp">u2netp — smaller, faster, lower quality</option>
+                    <option value="u2net_human_seg">u2net_human_seg — tuned for people</option>
+                    <option value="u2net_cloth_seg">u2net_cloth_seg — clothing only</option>
+                    <option value="silueta">silueta — silhouette-style cut-outs</option>
+                    <option value="isnet-general-use">isnet-general-use — sharper edges, slower</option>
+                  </select>
+                  <p className="text-[10px] text-neutral-600 mt-1">First use of a model downloads it (~100-200 MB, one-time).</p>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
+                  <input type="checkbox" checked={bgAlphaMatting}
+                    onChange={(e) => setBgAlphaMatting(e.target.checked)}
+                    className="accent-purple-500" />
+                  Alpha matting
+                  <span className="text-neutral-600 ml-1">(cleaner hair/fur edges, slower)</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
+                  <input type="checkbox" checked={bgReturnMask}
+                    onChange={(e) => setBgReturnMask(e.target.checked)}
+                    className="accent-purple-500" />
+                  Return mask only
+                  <span className="text-neutral-600 ml-1">(black &amp; white, no cut-out)</span>
+                </label>
+                <button onClick={doRemoveBg} disabled={!image || loading || !sdReady}
+                  className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
+                  {loading ? "Removing background..." : "Remove Background"}
+                </button>
+              </div>
+            )}
+
             {tab === "caption" && (
               <div className="space-y-3">
                 <div>
@@ -742,7 +799,7 @@ export default function ImageStudioPage() {
               </div>
             )}
 
-            {result && !loading && <ResultImage image={result} label={tab} />}
+            {result && !loading && <ResultImage image={result} label={tab} transparent={tab === "remove-bg"} />}
 
             {caption && !loading && (
               <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
