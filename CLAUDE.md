@@ -126,15 +126,18 @@ All optional — defaults work for standard local setup:
 | `OPENROUTER_MODEL` | (none — tries fallback list) | Override to force a single OpenRouter model; when unset, `lib/llm-provider.ts` rotates through `FREE_MODELS` until one responds |
 | `RNRVIBE_LOG_DIR` | `~/Desktop` | Directory the dashboard tails bat-file logs from (`rnrvibe-core.log`, `rnrvibe-sd.log`, `rnrvibe-audio.log`) |
 
-## Pending work: image-tools expansion (in progress)
+## ControlNet tool architecture
 
-Three new image features are being rolled out in separate commits. Each one is independent — if you pick up work here mid-way, check `git log` and the A1111 `extensions/` dir to see which are landed.
+`/tools/controlnet` is the standalone reference-guided image generator at `app/tools/controlnet/page.tsx`, backed by `app/api/controlnet/route.ts`. Three modes — **pose**, **depth**, **canny** — pick a `(preprocessor, model)` pair from hardcoded maps and send a `alwayson_scripts.controlnet` block to `/sdapi/v1/txt2img`:
 
-1. **Outpaint** — ✅ shipped in commit `71eef3c`. 5th tab in Image Studio; `handleOutpaint` in `app/api/image-studio/route.ts`. Client pads the image + builds the mask in a canvas, server calls `/sdapi/v1/img2img` with `inpainting_fill: 2` (latent noise). No A1111 extension required.
-2. **Background removal** — 6th tab in Image Studio. `handleRemoveBg` in the same route hits the rembg extension at `POST /rembg` (note: NOT under `/sdapi/v1/`). Model defaults to `u2net`; first call downloads the ONNX weights (~100-200 MB) to `~/.u2net/`. Runs CPU-side via onnxruntime so it doesn't steal VRAM. Requires `stable-diffusion-webui-rembg` cloned into `C:/Users/obaid/stable-diffusion-webui/extensions/` + one SD restart (extension auto-installs rembg/onnxruntime/pymatting/pooch via `install.py`).
-3. **ControlNet tool** — new standalone tool at `app/tools/controlnet/page.tsx`, registered in `data/tools.ts`, system prompt id `"controlnet"` in `ALLOWED_SYSTEM_PROMPTS`. Three modes: pose (openpose), depth, canny. Sends `alwayson_scripts.controlnet` block to `/sdapi/v1/txt2img`. Requires `sd-webui-controlnet` extension + models `control_v11p_sd15_openpose.pth`, `control_v11f1p_sd15_depth.pth`, `control_v11p_sd15_canny.pth` in `models/ControlNet/` (all three downloaded locally — ~4.1 GB). VRAM budget: +~1.2 GB on top of the base SD 1.5 model at 512×512 — tight but fits on the 6 GB GPU.
+- Model IDs are pinned with bracketed hashes (e.g. `control_v11p_sd15_openpose [cab727d4]`). A1111 silently falls back to "no model" on any mismatch — if the install ever regenerates different hashes, update `MODEL_IDS` in `route.ts`.
+- Preprocessor modules are `openpose` (body keypoints only), `depth_midas` (MiDaS), and `canny`.
+- `save_detected_map: true` appends the preprocessed conditioning image (skeleton / depth map / edge map) as a second entry in `data.images`; the UI shows it below the main result.
+- VRAM envelope: width/height clamped to 256–768 on each side for the 6 GB GPU (SD 1.5 + ControlNet is roughly 1.2 GB heavier than plain txt2img).
+- Rate limit: stricter than image-studio (8 / 5 min / IP) because each request is two GPU passes.
+- `GET /api/controlnet` returns `/controlnet/model_list` so the page can show a clear "ControlNet extension not loaded" banner instead of failing on submit.
 
-Build order is outpaint → bg-removal → controlnet. Each lands as its own commit + Vercel deploy so regressions are isolated.
+**Known venv gotcha:** the `sd-webui-controlnet` extension depends on `controlnet_aux`, which in turn imports `mediapipe.solutions`. `mediapipe >= 0.10.14` removed that attribute; the fix is `venv\Scripts\pip install -U controlnet_aux` (or pin `mediapipe<0.10.14`). If future SD updates break the extension again with `AttributeError: module 'mediapipe' has no attribute 'solutions'`, that's the same class of problem.
 
 ## Things to watch out for
 

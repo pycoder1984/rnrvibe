@@ -165,8 +165,14 @@ export const tools: Tool[] = [
   {
     href: "/tools/image-studio",
     title: "AI Image Studio",
-    description: "Upscale, restyle, inpaint, and caption images with local Stable Diffusion \u2014 no cloud needed.",
+    description: "Upscale, restyle, inpaint, outpaint, remove backgrounds, and caption images with local Stable Diffusion \u2014 no cloud needed.",
     icon: "\u2728",
+  },
+  {
+    href: "/tools/controlnet",
+    title: "ControlNet Image Generator",
+    description: "Guide Stable Diffusion with a reference image. Transfer pose, preserve depth, or match edges exactly.",
+    icon: "\ud83d\udd79\ufe0f",
   },
   {
     href: "/tools/deep-research",
