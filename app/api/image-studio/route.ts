@@ -154,6 +154,73 @@ async function handleInpaint(body: Record<string, unknown>) {
   return NextResponse.json({ image: data.images[0], seed: resultSeed });
 }
 
+// ─── Outpaint (extend canvas via masked img2img) ─────────────────────
+//
+// The client pre-pads the image with mid-gray pixels and builds a mask where
+// white = newly-added padding, black = original content. That lets us reuse
+// the standard img2img+mask endpoint instead of depending on the (flaky)
+// "Outpainting mk2" script. `inpainting_fill: 2` tells SD to seed the masked
+// region with latent noise, which consistently outperforms original/fill for
+// extending scenery past the original frame.
+
+async function handleOutpaint(body: Record<string, unknown>) {
+  const { image, mask, prompt, negativePrompt, denoisingStrength, width, height, steps, cfgScale, seed } = body;
+
+  if (!image || typeof image !== "string") {
+    return NextResponse.json({ error: "Image is required" }, { status: 400 });
+  }
+  if (!mask || typeof mask !== "string") {
+    return NextResponse.json({ error: "Mask is required" }, { status: 400 });
+  }
+  if (!prompt || typeof prompt !== "string") {
+    return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+  }
+
+  // Cap dimensions to keep inside the 6 GB VRAM envelope for SD 1.5
+  const w = Math.min(Math.max(Number(width) || 768, 256), 1024);
+  const h = Math.min(Math.max(Number(height) || 768, 256), 1024);
+
+  const res = await fetch(`${SD_URL}/sdapi/v1/img2img`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      init_images: [image as string],
+      mask: mask as string,
+      prompt: prompt as string,
+      negative_prompt: (negativePrompt as string) || "blurry, bad quality, distorted, seams, hard edges",
+      denoising_strength: Math.min(Math.max(Number(denoisingStrength) || 0.85, 0.5), 1.0),
+      width: w,
+      height: h,
+      steps: Math.min(Math.max(Number(steps) || 30, 10), 50),
+      cfg_scale: Math.min(Math.max(Number(cfgScale) || 7, 1), 20),
+      seed: Number(seed) || -1,
+      sampler_name: "DPM++ 2M",
+      scheduler: "Karras",
+      resize_mode: 0,
+      inpainting_fill: 2,
+      inpaint_full_res: false,
+      inpainting_mask_invert: 0,
+      mask_blur_x: 16,
+      mask_blur_y: 16,
+    }),
+    signal: AbortSignal.timeout(240000),
+  });
+
+  if (!res.ok) {
+    return NextResponse.json({ error: "Outpaint failed. Try smaller padding or a different prompt." }, { status: 502 });
+  }
+
+  const data = await res.json();
+  if (!data.images || data.images.length === 0) {
+    return NextResponse.json({ error: "No image returned" }, { status: 502 });
+  }
+
+  let resultSeed = -1;
+  try { resultSeed = JSON.parse(data.info).seed; } catch { /* ignore */ }
+
+  return NextResponse.json({ image: data.images[0], seed: resultSeed });
+}
+
 // ─── Caption (Interrogate) ───────────────────────────────────────────
 
 async function handleCaption(body: Record<string, unknown>) {
@@ -225,11 +292,14 @@ export async function POST(req: NextRequest) {
       case "inpaint":
         result = await handleInpaint(body);
         break;
+      case "outpaint":
+        result = await handleOutpaint(body);
+        break;
       case "caption":
         result = await handleCaption(body);
         break;
       default:
-        return NextResponse.json({ error: "Invalid action. Use: upscale, restyle, inpaint, caption" }, { status: 400 });
+        return NextResponse.json({ error: "Invalid action. Use: upscale, restyle, inpaint, outpaint, caption" }, { status: 400 });
     }
 
     addLog({

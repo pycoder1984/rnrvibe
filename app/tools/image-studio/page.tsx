@@ -4,14 +4,107 @@ import { getApiBase } from "@/lib/api-config";
 import BlogNav from "@/components/BlogNav";
 import { useState, useRef, useEffect, useCallback } from "react";
 
-type Tab = "upscale" | "restyle" | "inpaint" | "caption";
+type Tab = "upscale" | "restyle" | "inpaint" | "outpaint" | "caption";
 
 const TABS: { id: Tab; name: string; icon: string; desc: string }[] = [
   { id: "upscale", name: "Upscale & Enhance", icon: "\u2B06", desc: "AI upscale + face restore" },
   { id: "restyle", name: "Restyle", icon: "\u{1F3A8}", desc: "Transform with a prompt" },
   { id: "inpaint", name: "Inpaint", icon: "\u{1F58C}\uFE0F", desc: "Edit parts of an image" },
+  { id: "outpaint", name: "Outpaint", icon: "\u{1F5BC}️", desc: "Extend past the canvas" },
   { id: "caption", name: "Image to Prompt", icon: "\u{1F4DD}", desc: "Get AI description" },
 ];
+
+// ─── Outpaint helpers ────────────────────────────────────────────────
+//
+// Pad the input with mid-gray on the chosen sides + build a matching mask
+// (white = new padding, black = original). Rounded to multiples of 8 to
+// satisfy SD's latent-size requirement. The padded image + mask feed into
+// /api/image-studio action=outpaint which runs img2img with inpainting_fill: 2
+// (latent noise) so SD paints coherent content into the new area.
+
+async function buildOutpaintInputs(
+  baseB64: string,
+  padLeft: number, padTop: number, padRight: number, padBottom: number
+): Promise<{ image: string; mask: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const rawW = img.naturalWidth + padLeft + padRight;
+      const rawH = img.naturalHeight + padTop + padBottom;
+      const w = Math.floor(rawW / 8) * 8;
+      const h = Math.floor(rawH / 8) * 8;
+
+      const imageCanvas = document.createElement("canvas");
+      imageCanvas.width = w;
+      imageCanvas.height = h;
+      const ictx = imageCanvas.getContext("2d")!;
+      ictx.fillStyle = "#808080";
+      ictx.fillRect(0, 0, w, h);
+      ictx.drawImage(img, padLeft, padTop);
+
+      const maskCanvas = document.createElement("canvas");
+      maskCanvas.width = w;
+      maskCanvas.height = h;
+      const mctx = maskCanvas.getContext("2d")!;
+      mctx.fillStyle = "white";
+      mctx.fillRect(0, 0, w, h);
+      mctx.fillStyle = "black";
+      mctx.fillRect(padLeft, padTop, img.naturalWidth, img.naturalHeight);
+
+      resolve({
+        image: imageCanvas.toDataURL("image/png").split(",")[1],
+        mask: maskCanvas.toDataURL("image/png").split(",")[1],
+        width: w,
+        height: h,
+      });
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = `data:image/png;base64,${baseB64}`;
+  });
+}
+
+function OutpaintPreview({
+  image, padLeft, padTop, padRight, padBottom,
+}: { image: string; padLeft: number; padTop: number; padRight: number; padBottom: number }) {
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
+    img.src = `data:image/png;base64,${image}`;
+  }, [image]);
+
+  if (!dims) return null;
+
+  const totalW = dims.w + padLeft + padRight;
+  const totalH = dims.h + padTop + padBottom;
+  const oversized = totalW > 1024 || totalH > 1024;
+
+  return (
+    <div className="rounded-xl border border-neutral-700 bg-neutral-950 p-3">
+      <div className="text-[10px] text-neutral-500 mb-2">
+        {dims.w}x{dims.h} -&gt; {totalW}x{totalH}
+        {oversized && <span className="text-amber-400 ml-2">warning: will be capped at 1024x1024 (VRAM)</span>}
+      </div>
+      <div
+        className="relative mx-auto bg-purple-500/20 border border-purple-500/30"
+        style={{ width: "100%", maxWidth: "320px", aspectRatio: `${totalW} / ${totalH}` }}
+      >
+        <img
+          src={`data:image/png;base64,${image}`}
+          alt="Base"
+          className="absolute"
+          style={{
+            left: `${(padLeft / totalW) * 100}%`,
+            top: `${(padTop / totalH) * 100}%`,
+            width: `${(dims.w / totalW) * 100}%`,
+            height: `${(dims.h / totalH) * 100}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -270,6 +363,14 @@ export default function ImageStudioPage() {
   const [inpaintPrompt, setInpaintPrompt] = useState("");
   const [inpaintDenoising, setInpaintDenoising] = useState(0.75);
 
+  // Outpaint state
+  const [padLeft, setPadLeft] = useState(128);
+  const [padTop, setPadTop] = useState(0);
+  const [padRight, setPadRight] = useState(128);
+  const [padBottom, setPadBottom] = useState(0);
+  const [outpaintPrompt, setOutpaintPrompt] = useState("");
+  const [outpaintDenoising, setOutpaintDenoising] = useState(0.85);
+
   // Caption state
   const [captionModel, setCaptionModel] = useState("clip");
 
@@ -349,6 +450,30 @@ export default function ImageStudioPage() {
   const doInpaint = () => callApi({
     action: "inpaint", image, mask, prompt: inpaintPrompt, denoisingStrength: inpaintDenoising, steps: 25, cfgScale: 7,
   });
+
+  const doOutpaint = async () => {
+    if (!image || !outpaintPrompt.trim()) return;
+    if (padLeft === 0 && padTop === 0 && padRight === 0 && padBottom === 0) {
+      setError("Set at least one padding amount above 0");
+      return;
+    }
+    try {
+      const prepped = await buildOutpaintInputs(image, padLeft, padTop, padRight, padBottom);
+      await callApi({
+        action: "outpaint",
+        image: prepped.image,
+        mask: prepped.mask,
+        width: prepped.width,
+        height: prepped.height,
+        prompt: outpaintPrompt,
+        denoisingStrength: outpaintDenoising,
+        steps: 30,
+        cfgScale: 7,
+      });
+    } catch {
+      setError("Failed to prepare outpaint inputs — try re-uploading the image");
+    }
+  };
 
   const doCaption = () => callApi({ action: "caption", image, model: captionModel });
 
@@ -520,6 +645,64 @@ export default function ImageStudioPage() {
                 <button onClick={doInpaint} disabled={!image || !mask || !inpaintPrompt.trim() || loading || !sdReady}
                   className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
                   {loading ? "Inpainting..." : "Inpaint Selection"}
+                </button>
+              </div>
+            )}
+
+            {tab === "outpaint" && (
+              <div className="space-y-3">
+                {image && (
+                  <OutpaintPreview
+                    image={image}
+                    padLeft={padLeft} padTop={padTop} padRight={padRight} padBottom={padBottom}
+                  />
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Left: {padLeft}px</label>
+                    <input type="range" min={0} max={256} step={8} value={padLeft}
+                      onChange={(e) => setPadLeft(Number(e.target.value))}
+                      className="w-full accent-purple-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Right: {padRight}px</label>
+                    <input type="range" min={0} max={256} step={8} value={padRight}
+                      onChange={(e) => setPadRight(Number(e.target.value))}
+                      className="w-full accent-purple-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Top: {padTop}px</label>
+                    <input type="range" min={0} max={256} step={8} value={padTop}
+                      onChange={(e) => setPadTop(Number(e.target.value))}
+                      className="w-full accent-purple-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Bottom: {padBottom}px</label>
+                    <input type="range" min={0} max={256} step={8} value={padBottom}
+                      onChange={(e) => setPadBottom(Number(e.target.value))}
+                      className="w-full accent-purple-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">What should fill the new area *</label>
+                  <textarea value={outpaintPrompt} onChange={(e) => setOutpaintPrompt(e.target.value)} rows={2}
+                    placeholder="e.g. more of the same forest scene, rolling hills extending to the horizon"
+                    className="w-full rounded-xl border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-200 placeholder-neutral-600 focus:border-purple-500/50 focus:outline-none resize-y" />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">
+                    Creative Strength: {outpaintDenoising.toFixed(2)}
+                    <span className="text-neutral-600 ml-2">(higher = more freedom in new area)</span>
+                  </label>
+                  <input type="range" min={0.5} max={1} step={0.05} value={outpaintDenoising}
+                    onChange={(e) => setOutpaintDenoising(Number(e.target.value))}
+                    className="w-full accent-purple-500" />
+                </div>
+                <button
+                  onClick={doOutpaint}
+                  disabled={!image || !outpaintPrompt.trim() || loading || !sdReady || (padLeft + padTop + padRight + padBottom === 0)}
+                  className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-40 transition">
+                  {loading ? "Extending canvas..." : "Outpaint"}
                 </button>
               </div>
             )}

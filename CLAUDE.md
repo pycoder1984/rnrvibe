@@ -110,6 +110,7 @@ Two site-wide invariants enforced at the edge (matcher: `/dashboard/:path*`, `/a
 - Components use Tailwind with the project's dark theme (neutral-950 bg, purple-500 accents).
 - Path alias `@/*` maps to the project root.
 - Adding a new tool requires: a page in `app/tools/<slug>/page.tsx`, a tool ID entry in `ALLOWED_SYSTEM_PROMPTS` in `lib/guardrails.ts`, and a registry entry in `data/tools.ts`. Optionally add `app/tools/<slug>/layout.tsx` with per-tool `metadata` + a `FAQPage` JSON-LD block (see `app/tools/chat/layout.tsx` for the pattern) — the `/faq` page and sitemap pick these up for SEO. Project (demo) metadata lives separately in `lib/project-metadata.ts`.
+- Client state that needs to persist across reloads should use `useLocalStorageState(key, getInitial)` from `lib/use-local-storage.ts` — not raw `useState + useEffect`. It returns `[value, setValue, hydrated]`, matches the server snapshot during the hydration pass (no mismatch warnings) via `useSyncExternalStore`, and cross-syncs hook instances bound to the same key within the same document via a `rnrvibe-ls-change` custom event (same-document writes don't fire native `storage` events). Gate any render that depends on stored data on the `hydrated` flag.
 
 ## Environment variables
 
@@ -124,6 +125,16 @@ All optional — defaults work for standard local setup:
 | `OPENROUTER_API_KEY` | (none) | Enables cloud LLM fallback |
 | `OPENROUTER_MODEL` | (none — tries fallback list) | Override to force a single OpenRouter model; when unset, `lib/llm-provider.ts` rotates through `FREE_MODELS` until one responds |
 | `RNRVIBE_LOG_DIR` | `~/Desktop` | Directory the dashboard tails bat-file logs from (`rnrvibe-core.log`, `rnrvibe-sd.log`, `rnrvibe-audio.log`) |
+
+## Pending work: image-tools expansion (in progress)
+
+Three new image features are being rolled out in separate commits. Each one is independent — if you pick up work here mid-way, check `git log` and the A1111 `extensions/` dir to see which are landed.
+
+1. **Outpaint** — 5th tab in `app/tools/image-studio/page.tsx`. Route `app/api/image-studio/outpaint/route.ts`. Pads the input image with transparent pixels on chosen sides, masks the padding, calls A1111 `/sdapi/v1/img2img` with `inpainting_fill: 2` (latent noise) so SD paints into the new area. No new A1111 extension required.
+2. **Background removal** — 6th tab in Image Studio. Route `app/api/image-studio/remove-bg/route.ts`. Calls the A1111 rembg extension endpoint `POST /rembg` (model: `u2net` or `isnet-general-use`). Requires `stable-diffusion-webui-rembg` extension cloned into `C:/Users/obaid/stable-diffusion-webui/extensions/` and SD restarted once. Runs CPU-side via onnxruntime, so it doesn't fight SD for VRAM.
+3. **ControlNet tool** — new standalone tool at `app/tools/controlnet/page.tsx`, registered in `data/tools.ts`, system prompt id `"controlnet"` in `ALLOWED_SYSTEM_PROMPTS`. Three modes: pose (openpose), depth, canny. Sends `alwayson_scripts.controlnet` block to `/sdapi/v1/txt2img`. Requires `sd-webui-controlnet` extension + models `control_v11p_sd15_openpose.pth`, `control_v11f1p_sd15_depth.pth`, `control_v11p_sd15_canny.pth` in `models/ControlNet/`. VRAM budget: +~1.2 GB on top of the base SD 1.5 model at 512×512 — tight but fits on the 6 GB GPU.
+
+Build order is outpaint → bg-removal → controlnet. Each lands as its own commit + Vercel deploy so regressions are isolated.
 
 ## Things to watch out for
 
